@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>رعد و برق تصادفی</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #050510;
+    color: #e0e0e0;
+    font-family: Tahoma, Arial, sans-serif;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100vh;
+  }
+  canvas { display: block; }
+  #controls {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: rgba(0,0,0,0.6);
+    padding: 12px 16px;
+    border-radius: 10px;
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255,255,255,0.1);
+    font-size: 0.9rem;
+    line-height: 2;
+    z-index: 10;
+  }
+  #controls label { margin-left: 8px; }
+  #controls select, #controls input[type=range] {
+    background: #222;
+    color: #fff;
+    border: 1px solid #444;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-family: inherit;
+  }
+  #info {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.8rem;
+    color: #78909c;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<div id="controls">
+  <label for="corner">گوشه شروع:</label>
+  <select id="corner">
+    <option value="tl">بالا چپ</option>
+    <option value="tr" selected>بالا راست</option>
+    <option value="bl">پایین چپ</option>
+    <option value="br">پایین راست</option>
+    <option value="random">تصادفی</option>
+  </select>
+  <br>
+  <label for="intensity">شدت:</label>
+  <input type="range" id="intensity" min="1" max="10" value="5">
+  <br>
+  <label for="speed">سرعت:</label>
+  <input type="range" id="speed" min="1" max="10" value="4">
+</div>
+
+<canvas id="storm"></canvas>
+<div id="info">برای زدن دستی رعد و برق، کلیک کنید | هر بار شکل کاملاً متفاوت است</div>
+
+<script>
+const canvas = document.getElementById('storm');
+const ctx = canvas.getContext('2d');
+
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ---------- Lightning Algorithm ----------
+// Recursive midpoint displacement with branching
+function drawLightning(x1, y1, x2, y2, displace, branches, width, color) {
+  if (displace < 2) {
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.lineWidth = width;
+    ctx.strokeStyle = color;
+    ctx.shadowBlur = width * 3;
+    ctx.shadowColor = color;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    return;
+  }
+
+  const midX = (x1 + x2) / 2;
+  const midY = (y1 + y2) / 2;
+  const nx = midX + (Math.random() - 0.5) * displace;
+  const ny = midY + (Math.random() - 0.5) * displace;
+
+  // Main bolt
+  drawLightning(x1, y1, nx, ny, displace / 2, branches - 1, width, color);
+  drawLightning(nx, ny, x2, y2, displace / 2, branches - 1, width, color);
+
+  // Branching
+  if (branches > 0 && Math.random() < 0.4) {
+    const angle = Math.random() * Math.PI * 2;
+    const branchLen = Math.hypot(x2 - x1, y2 - y1) * 0.4;
+    const bx = nx + Math.cos(angle) * branchLen;
+    const by = ny + Math.sin(angle) * branchLen;
+    const branchColor = color === '#ffffff' ? '#aabbff' : '#ffffff';
+    drawLightning(nx, ny, bx, by, displace / 2, branches - 2, width * 0.6, branchColor);
+  }
+}
+
+function getCorner(cornerMode) {
+  const w = canvas.width;
+  const h = canvas.height;
+  let mode = cornerMode;
+  if (mode === 'random') {
+    const modes = ['tl','tr','bl','br'];
+    mode = modes[Math.floor(Math.random() * modes.length)];
+  }
+  switch(mode) {
+    case 'tl': return { x: 0, y: 0 };
+    case 'tr': return { x: w, y: 0 };
+    case 'bl': return { x: 0, y: h };
+    case 'br': return { x: w, y: h };
+    default: return { x: w, y: 0 };
+  }
+}
+
+function randomTarget() {
+  return {
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height
+  };
+}
+
+function flashBackground() {
+  const alpha = 0.05 + Math.random() * 0.1;
+  ctx.fillStyle = `rgba(200, 220, 255, ${alpha})`;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
+
+function strike() {
+  const cornerMode = document.getElementById('corner').value;
+  const intensity = parseInt(document.getElementById('intensity').value);
+  const start = getCorner(cornerMode);
+  const end = randomTarget();
+
+  // Clear with fade for trail effect
+  ctx.fillStyle = 'rgba(5, 5, 16, 0.3)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  flashBackground();
+
+  const baseDisplace = 120 + intensity * 25;
+  const branches = Math.floor(intensity / 2) + 1;
+  const width = 1.5 + Math.random() * 2;
+  const hue = Math.random() > 0.7 ? '#a8c0ff' : '#ffffff';
+
+  // Draw multiple faint echoes for thickness
+  for (let i = 0; i < 3; i++) {
+    drawLightning(start.x, start.y, end.x, end.y, baseDisplace, branches, width * (i + 1) * 0.5, hue);
+  }
+}
+
+// ---------- Rain ----------
+const drops = Array.from({ length: 100 }, () => ({
+  x: Math.random() * canvas.width,
+  y: Math.random() * canvas.height,
+  len: 10 + Math.random() * 20,
+  speed: 10 + Math.random() * 15
+}));
+
+function drawRain() {
+  ctx.strokeStyle = 'rgba(174, 194, 224, 0.3)';
+  ctx.lineWidth = 1;
+  for (const d of drops) {
+    ctx.beginPath();
+    ctx.moveTo(d.x, d.y);
+    ctx.lineTo(d.x, d.y + d.len);
+    ctx.stroke();
+    d.y += d.speed;
+    if (d.y > canvas.height) {
+      d.y = -d.len;
+      d.x = Math.random() * canvas.width;
+    }
+  }
+}
+
+// ---------- Loop ----------
+let lastStrike = 0;
+let interval = 2000;
+
+function loop(timestamp) {
+  const speed = 11 - parseInt(document.getElementById('speed').value); // lower is faster
+  interval = speed * 400;
+
+  // Fade background
+  ctx.fillStyle = 'rgba(5, 5, 16, 0.25)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  drawRain();
+
+  if (timestamp - lastStrike > interval) {
+    strike();
+    lastStrike = timestamp;
+  }
+
+  requestAnimationFrame(loop);
+}
+
+requestAnimationFrame(loop);
+
+// Manual strike on click
+document.addEventListener('click', (e) => {
+  if (e.target.closest('#controls')) return;
+  strike();
+});
+</script>
+</body>
+</html>
