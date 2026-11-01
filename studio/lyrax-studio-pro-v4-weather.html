@@ -367,6 +367,12 @@
             .workspace-grid { grid-template-columns: 1fr; }
         }
 
+        /* 📱 روی گوشی دکمه‌های لمسی «صاعقه / باران» تمام‌عرض و انگشت‌خور باشند */
+        @media (max-width: 560px) {
+            #quickFxRow { flex-direction: column; }
+            #quickFxRow > .btn { width: 100%; min-width: 0 !important; flex: none !important; }
+        }
+
         .canvas-col {
             display: flex;
             flex-direction: column;
@@ -664,6 +670,20 @@ Email : Hadi.tabatabaei@gmail.com
                         <button class="btn btn-warning" onclick="manualTriggerLightning(1)" style="flex:1; min-width:120px; font-weight:bold; font-size:1.02rem;">⚡ رعد قوی و کلفت</button>
                         <button class="btn btn-danger" onclick="manualTriggerLightning(2)" style="flex:1; min-width:150px; font-weight:bold; font-size:1.05rem;">🌩️ رعد قوی و پیچیده (شاخه‌دار)</button>
                     </div>
+
+                    <!-- ⚡ صاعقه و 🌧️ بارش — کلیدهای لمسی همین تب اصلی
+                         (کلید میانبر L/R فقط با کیبورد فیزیکی ویندوز کار می‌کند؛ روی موبایل این دکمه‌ها را بزن) -->
+                    <div id="quickFxRow" style="display:flex; gap:8px; flex-wrap:wrap; margin-top:0.3rem;">
+                        <button class="btn" id="btnQuickLightning" onclick="fxTriggerFromUI('lightning_storm')"
+                                style="flex:2; min-width:170px; background:linear-gradient(135deg,#263d9b,#a8c0ff); color:#fff; border:none; font-weight:900; font-size:1.05rem; padding:0.8rem 0.6rem;">⚡ صاعقه روی کلیپ</button>
+                        <button class="btn" id="btnQuickRain" onclick="toggleRainOverlayQuick()"
+                                style="flex:1.4; min-width:150px; background:linear-gradient(135deg,#075985,#7dd3fc); color:#06111b; border:none; font-weight:900; font-size:0.98rem; padding:0.8rem 0.6rem;">🌧️ باران: خاموش</button>
+                        <button class="btn" id="btnQuickRainStorm" onclick="fxTriggerFromUI('rain_storm')"
+                                style="flex:1; min-width:140px; background:rgba(125,211,252,0.14); color:#7dd3fc; border:1px solid rgba(125,211,252,0.55); font-weight:800; font-size:0.9rem; padding:0.8rem 0.6rem;">🌧️ یک رگبار ۸ ثانیه‌ای</button>
+                    </div>
+                    <small id="quickFxHint" style="color:var(--text-muted); font-size:0.8rem; line-height:1.8; display:block;">
+                        هر تپ، افکت را دقیقاً در همین ثانیهٔ پخش روی تایم‌لاین ثبت می‌کند (دقیقاً همان کاری که کلید L/R در ویندوز می‌کند).
+                    </small>
 
                     <!-- لینک دانلود کلیپ ساخته شده (خواسته‌ی شماره ۱) -->
                     <div class="video-download-card" id="recordedVideoContainer">
@@ -1082,6 +1102,8 @@ Email : Hadi.tabatabaei@gmail.com
                     <small style="color:var(--text-muted);display:block;margin-top:10px;line-height:1.8;">
                         «باران پیوسته» با تیک خودش روشن می‌ماند؛ دکمهٔ «باران طوفانی» یک رخداد ۸ ثانیه‌ای روی تایم‌لاین ثبت می‌کند.
                         باران و صاعقه به هم وابسته نیستند؛ می‌توانی فقط یکی، یا هر دو را هم‌زمان داشته باشی.
+                        روی موبایل/تبلت نیازی به کیبورد نیست: دکمه‌های <b style="color:#a8c0ff;">«⚡ صاعقه روی کلیپ»</b> و
+                        <b style="color:#7dd3fc;">«🌧️ باران: روشن/خاموش»</b> بالای همین صفحه در تب ۱ هم همین کار را می‌کنند.
                         هر دو از ماژول <b style="color:#7dd3fc;">lyrax-storm.js</b> رسم می‌شوند و به «رعدوبرقِ هماهنگ با ضرب»
                         (پنل بالا) کاری ندارند؛ آن پنل کاملاً جدا و دست‌نخورده است.
                     </small>
@@ -6402,6 +6424,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
                 button.style.cursor = enabled ? 'pointer' : 'not-allowed';
             }
             if (typeof showToast === 'function') showToast(enabled ? '⚡ صاعقه فعال است؛ با کلیک روی دکمه یا کلید L در زمان دلخواه ثبتش کن.' : '⏸️ صاعقه غیرفعال شد.');
+            if (typeof syncQuickEffectButtons === 'function') syncQuickEffectButtons();
             if (typeof drawFrame === 'function') drawFrame();
         }
 
@@ -6427,6 +6450,44 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         function updateFxCountBadge() {
             let el = document.getElementById('fxCountBadge');
             if (el && window.LyraxFx) el.innerText = window.LyraxFx.getTimelineEvents().length + ' افکت ثبت شده';
+        }
+
+        // ===== ⚡ کلیدهای لمسی تب اصلی: صاعقه و باران (بدون نیاز به کیبورد/نسخه ویندوز) =====
+        // همان کاری که کلید L/R می‌کند، با یک تپ روی دکمه؛ افکت در همان ثانیهٔ پخش ثبت می‌شود.
+        function syncQuickEffectButtons() {
+            const lt = document.getElementById('lightningEnabledToggle');
+            const lightningOn = lt ? !!lt.checked : true;
+
+            const lbtn = document.getElementById('btnQuickLightning');
+            if (lbtn) {
+                lbtn.disabled = !lightningOn;
+                lbtn.style.opacity = lightningOn ? '1' : '0.45';
+                lbtn.style.cursor = lightningOn ? 'pointer' : 'not-allowed';
+                lbtn.innerText = lightningOn ? '⚡ صاعقه روی کلیپ' : '⏸️ صاعقه غیرفعال است';
+            }
+
+            const morning = document.getElementById('rainOverlayEnabledToggle');
+            const rainOn = morning ? !!morning.checked : false;
+            const rbtn = document.getElementById('btnQuickRain');
+            if (rbtn) {
+                rbtn.innerText = rainOn ? '🌧️ باران: روشن' : '🌧️ باران: خاموش';
+                rbtn.style.boxShadow = rainOn ? '0 0 0 2px rgba(125,211,252,0.65) inset' : 'none';
+            }
+
+            // «یک رگبار ۸ ثانیه‌ای» (رخداد rain_storm) مستقل از تیک باران پیوسته کار می‌کند،
+            // پس دکمه‌اش همیشه فعال می‌ماند؛ فقط تیک باران، بارشِ پیوسته را کنترل می‌کند.
+        }
+
+        // در همان لحظهٔ بارگذاری هم برچسب/وضعیت دکمه‌ها درست باشد
+        try { syncQuickEffectButtons(); } catch (e) {}
+
+        // تیک «باران پیوسته روی تصویر» را از تب اصلی روشن/خاموش می‌کند
+        function toggleRainOverlayQuick() {
+            const rt = document.getElementById('rainOverlayEnabledToggle');
+            const next = !(rt && rt.checked);
+            if (rt) rt.checked = next;
+            setRainOverlayEnabled(next);
+            syncQuickEffectButtons();
         }
 
         // ===== برند / امضا / لوگوی رعدی (ماژول مستقل js/modules/lyrax-brand.js) =====
@@ -6565,6 +6626,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
             const rt = document.getElementById('rainOverlayEnabledToggle');
             if (rt && rt.checked !== !!enabled) rt.checked = !!enabled;
             updateWeatherFromUI();
+            if (typeof syncQuickEffectButtons === 'function') syncQuickEffectButtons();
             if (typeof showToast === 'function') {
                 showToast(enabled ? '🌧️ باران پیوسته فعال شد.' : '⏸️ باران پیوسته خاموش شد.');
             }
@@ -6584,6 +6646,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         // مقدار اولیه‌ی پنل را یک‌بار با ماژول همگام می‌کنیم (بدون تأخیر در بارگذاری صفحه)
         setTimeout(function () {
             if (window.LyraxWeather) { try { updateWeatherFromUI(); } catch (e) {} }
+            if (typeof syncQuickEffectButtons === 'function') { try { syncQuickEffectButtons(); } catch (e) {} }
         }, 0);
 
         // بازیابی تنظیمات از فایل JSON پروژه (داشبورد + رندر سروری از همین مقادیر می‌خوانند)
@@ -6615,6 +6678,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
             const rt = document.getElementById('rainOverlayEnabledToggle');
             rainOverlayEnabled = !!(rt && rt.checked);
             updateWeatherFromUI();
+            if (typeof syncQuickEffectButtons === 'function') syncQuickEffectButtons();
         }
 
         // --- رسم بوم همراه با تصاویر اوورلی زمان‌بندی شده و زیرنویس دوزبانه ---
