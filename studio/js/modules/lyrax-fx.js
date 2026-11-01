@@ -2,6 +2,7 @@
  * ==============================================================================
  *  LyraX FX Layer  —  js/modules/lyrax-fx.js
  *  لایه‌ی افکت‌های ماژولار روی کلیپ (آتش‌بازی، موج شوک، باران جرقه، فلاش استروب)
+ *  صاعقه (L) و باران طوفانی (R) از ماژول lyrax-storm.js رسم می‌شوند.
  * ------------------------------------------------------------------------------
  *  این فایل کاملاً مستقل و ماژولار است و هیچ‌جای آن به کد اصلی دست نمی‌زند.
  *  کلاس/آبجکت سراسری window.LyraxFx را می‌سازد که سه کار انجام می‌دهد:
@@ -161,27 +162,65 @@
       }
     },
 
-    /* 🌧️ باران طوفانی — افکت مستقل و زمان‌بندی‌پذیر (همان موتور LyraxWeather) */
+    /* 🌧️ باران طوفانی — افکت مستقل و زمان‌بندی‌پذیر (موتور بارش lyrax-storm.js) */
     rain_storm: {
       title: '🌧️ باران طوفانی',
       badgeText: '🌧️ باران طوفانی', badgeBg: 'rgba(125,211,252,0.18)', badgeColor: '#7dd3fc',
       duration: 8.0,
       draw: function (ctx, elapsed, ev, W, H) {
+        const storm = global.LyraxStorm;
         const weather = global.LyraxWeather;
+        const cfg = (weather && weather.getSettings) ? weather.getSettings().rain : null;
+
+        // ۱) موتور اصلی: LyraxStorm (همان تیک «باران پیوسته» داشبورد)
+        if (storm && storm.drawRainAt) {
+          storm.drawRainAt(ctx, ev.t + elapsed, W, H, cfg ? {
+            enabled: true,
+            density: cfg.density, speed: cfg.speed, angle: cfg.angle,
+            opacity: cfg.opacity, length: cfg.length, color: cfg.color
+          } : { enabled: true });
+          return;
+        }
+
+        // ۲) پشتیبان: اگر ماژول Storm بارگذاری نشده باشد، همان موتور LyraxWeather
         if (!weather || !weather.drawRain) return;
-        const cfg = weather.getSettings().rain;
+        const wcfg = weather.getSettings().rain;
         // زمانِ مطلقِ تایم‌لاین ⇒ فاز باران با «باران پیوسته» و با رندر سروری یکی می‌ماند
-        weather.drawRain(ctx, ev.t + elapsed, W, H, Object.assign({}, cfg, { enabled: true }));
+        weather.drawRain(ctx, ev.t + elapsed, W, H, Object.assign({}, wcfg, { enabled: true }));
       }
     },
 
-    /* ⚡ صاعقه — همان midpoint displacement بازگشتی + شاخه‌های ۰٫۴ نمونهٔ lightning_storm */
+    /* ⚡ صاعقه — موتور lyrax-storm.js (کلید L و دکمهٔ «ثبت صاعقه روی کلیپ») */
     lightning_storm: {
-      title: '⚡ صاعقهٔ طوفانی',
+      title: '⚡ صاعقه',
       badgeText: '⚡ صاعقه', badgeBg: 'rgba(120,160,255,0.20)', badgeColor: '#a8c0ff',
-      duration: 2.4,
+      duration: 1.2,   // یک «ضربه»ی صاعقه؛ موتور LyraxStorm در همین بازه فلاش و محو را می‌سازد
       draw: function (ctx, elapsed, ev, W, H) {
+        const storm = global.LyraxStorm;
         const weather = global.LyraxWeather;
+        const lcfg = (weather && weather.getSettings) ? weather.getSettings().lightning : null;
+
+        // ۱) موتور اصلی: صاعقهٔ ماژول LyraxStorm (هندسه از seed همان رخداد)
+        if (storm && storm.createLightningEvent && storm.renderStormLightning) {
+          const key = Math.round(W) + 'x' + Math.round(H) + '|' +
+            (lcfg ? [lcfg.start, lcfg.branches, lcfg.thickness, lcfg.color, lcfg.intensity].join(',') : '');
+          if (!ev._stormEv || ev._stormKey !== key) {
+            ev._stormEv = storm.createLightningEvent(ev.t, {
+              seed: ev.seed,
+              duration: ev.duration,
+              flash: true,
+              corner: lcfg ? lcfg.start : undefined,
+              branches: lcfg ? lcfg.branches : undefined,
+              thickness: lcfg ? lcfg.thickness : undefined,
+              intensity: lcfg ? lcfg.intensity : undefined,
+              color: lcfg ? lcfg.color : undefined
+            });
+            ev._stormKey = key;
+          }
+          if (storm.renderStormLightning(ctx, ev._stormEv, ev.t + elapsed, W, H)) return;
+        }
+
+        // ۲) پشتیبان: اگر ماژول Storm بارگذاری نشده باشد، همان موتور LyraxWeather
         if (!weather || !weather.drawLightning) return;
         const p = clamp(elapsed / ev.duration, 0, 1);
         weather.drawLightning(ctx, {
@@ -321,7 +360,7 @@
   function setTriggerHandler(fn) { triggerHandler = fn; }
 
   global.LyraxFx = {
-    version: '1.1.0',
+    version: '1.2.0',
     FX_DEFS: FX_DEFS,
     getTypes: function () { return Object.keys(FX_DEFS); },
     setEnabled: function (type, enabled) { if (FX_DEFS[type]) effectEnabled[type] = !!enabled; },

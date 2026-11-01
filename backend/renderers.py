@@ -93,8 +93,7 @@ LIGHTNING_STYLES = {
 #  قرارداد طلایی: پیش‌نمایش مرورگر و رندر FFmpeg باید یک تصویر بدهند؛ پس PRNG، ترتیب
 #  فراخوانی rnd() و همه‌ی فرمول‌ها عیناً همان‌هایی هستند که در ماژول جاوااسکریپت‌اند.
 # ======================================================================================
-RAIN_LOOP_SEC = 8
-RAIN_SPEED_TIERS = (1, 2, 3)
+STORM_RAIN_SEED_TAG = "lyrax-storm-rain-v1"
 
 WEATHER_DEFAULTS = {
     "rain": {"enabled": False, "density": 150, "speed": 1.0, "angle": 8,
@@ -103,9 +102,20 @@ WEATHER_DEFAULTS = {
                   "branches": 3, "thickness": 1.0},
 }
 
-FLASH_WINDOWS = ((0.0, 0.045, 0.62), (0.045, 0.12, 0.18), (0.12, 0.19, 0.46),
-                 (0.19, 0.27, 0.08), (0.27, 0.34, 0.30), (0.34, 0.43, 0.05),
-                 (0.43, 0.49, 0.15))
+# ضریب‌های سه‌پاس رسم صاعقه در lyrax-storm.js: (ضریب ضخامت، ضریب آلفا)
+STORM_BOLT_PASSES = ((3.4, 0.16), (1.7, 0.42), (1.0, 1.00))
+STORM_FLASH_SPAN = 0.38          # طول پنجره‌ی فلاش پشت صحنه (نسبت به کل مدت رخداد)
+STORM_FLASH_ALPHA = 0.15         # میانگین flicker در ماژول: 0.1 + 0.1 × flicker
+
+
+def _clamp(value, low, high):
+    try:
+        value = float(value)
+    except (TypeError, ValueError):
+        value = float(low)
+    if value != value:  # NaN
+        value = float(low)
+    return max(low, min(high, value))
 
 
 def _js_hash_string(text):
@@ -137,82 +147,86 @@ class _Mulberry32:
         return ((t ^ (t >> 14)) & 0xFFFFFFFF) / 4294967296.0
 
 
-_RAIN_BAKE_CACHE = {}
-
-
-def _bake_rain(count):
-    """همان bakeRain در JS: همان ترتیب rnd() و همان فیلدها (قرارداد مشترک)."""
-    count = int(count)
-    if count in _RAIN_BAKE_CACHE:
-        return _RAIN_BAKE_CACHE[count]
-    rnd = _Mulberry32(_js_hash_string("lyrax-rain-v2|%d" % count))
-    drops = []
-    for _ in range(count):
-        near = rnd() < 0.30
-        x = rnd()
-        phase = rnd()
-        tier = int(rnd() * 3) % 3
-        length = (0.016 + rnd() * 0.014) if near else (0.008 + rnd() * 0.010)
-        alpha = (0.72 + rnd() * 0.28) if near else (0.34 + rnd() * 0.40)
-        drops.append({"x": x, "phase": phase, "tier": tier, "len": length,
-                      "alpha": alpha, "width": 1.5 if near else 0.95})
-    _RAIN_BAKE_CACHE[count] = drops
-    return drops
-
-
 def _rain_settings(raw):
+    """نرمال‌سازی تنظیمات بارش — عیناً همان clamp های normalizeRainCfg در lyrax-storm.js."""
     cfg = dict(WEATHER_DEFAULTS["rain"])
     if isinstance(raw, dict):
         for key in cfg:
             if raw.get(key) is not None:
                 cfg[key] = raw[key]
-    try:
-        cfg["density"] = int(max(10, min(300, float(cfg.get("density") or 150))))
-    except (TypeError, ValueError):
-        cfg["density"] = 150
+    cfg["enabled"] = bool(cfg.get("enabled"))
+    cfg["density"] = int(round(_clamp(cfg.get("density") or 150, 10, 300)))
+    cfg["speed"] = _clamp(cfg.get("speed") or 1.0, 0.1, 5.0)
+    cfg["angle"] = _clamp(cfg.get("angle") if cfg.get("angle") is not None else 8, -45, 45)
+    cfg["opacity"] = _clamp(cfg.get("opacity") or 30, 1, 100)
+    cfg["length"] = _clamp(cfg.get("length") or 1.0, 0.2, 3.0)
+    cfg["color"] = str(cfg.get("color") or "#AEC2E0")
     return cfg
 
 
-def _rain_len_px(len_unit, res_h, length_setting):
-    return max(4.0, res_h * 1.55 * float(len_unit) * float(length_setting or 1.0))
+# ------------------------------- 🌧️ باران -------------------------------
+
+_STORM_RAIN_CACHE = {}
 
 
-def _rain_period(drops, res_h, length_setting):
-    longest = 1.0
-    for d in drops:
-        longest = max(longest, _rain_len_px(d["len"], res_h, length_setting))
-    return res_h + longest
+def _storm_bake_rain(count):
+    """همان bakeRainDrops در lyrax-storm.js: همان seed، همان ترتیب rnd() و همان فیلدها."""
+    count = int(_clamp(count, 10, 300))
+    if count in _STORM_RAIN_CACHE:
+        return _STORM_RAIN_CACHE[count]
+
+    rnd = _Mulberry32(_js_hash_string("%s|%d" % (STORM_RAIN_SEED_TAG, count)))
+    drops = []
+    for _ in range(count):
+        near = rnd() < 0.30
+        x = rnd()
+        phase = rnd()
+        len_unit = (0.018 + rnd() * 0.014) if near else (0.009 + rnd() * 0.010)
+        speed_unit = 0.42 + rnd() * 0.80
+        alpha = (0.72 + rnd() * 0.28) if near else (0.34 + rnd() * 0.40)
+        width_mul = 1.5 if near else 0.95
+        drops.append({"x": x, "phase": phase, "len": len_unit,
+                      "speed": speed_unit, "alpha": alpha, "width": width_mul})
+
+    _STORM_RAIN_CACHE[count] = drops
+    return drops
 
 
-def _iter_rain_segments(drop, cfg, res_h, period_px, t0, t1):
-    """بازه‌های حرکت یک قطره در [t0,t1] — تابع خالص از زمان، عیناً rainDropsAt.
+def _storm_rain_len_px(drop, res_h, length_setting):
+    return max(4.0, res_h * 1.55 * float(drop["len"]) * float(length_setting or 1.0))
 
-    y = f*period - len  با  f = (phase + t/8*turns) % 1
+
+def _iter_storm_rain_segments(drop, cfg, res_h, t0, t1):
+    """بازه‌های سقوط یک قطره در [t0,t1] — تابع خالص از زمان، عیناً drawRainAt در ماژول.
+
+    y(t) = f * travel − len   با   f = frac(phase + t × speed × speedUnit)
     """
     if t1 <= t0:
         return []
-    len_px = _rain_len_px(drop["len"], res_h, cfg.get("length") or 1.0)
-    speed = max(0.5, float(cfg.get("speed") or 1.0))
-    turns = max(1, int(round(RAIN_SPEED_TIERS[drop["tier"]] * speed)))
+    len_px = _storm_rain_len_px(drop, res_h, cfg.get("length") or 1.0)
+    travel = res_h + len_px
+    speed_mul = max(0.1, float(cfg.get("speed") or 1.0))
+    u = float(drop["speed"]) * speed_mul
+    if u <= 0:
+        return []
     phase = float(drop["phase"])
-    seg_len = RAIN_LOOP_SEC / float(turns)
 
     out = []
-    n = int(math.floor(t0 / seg_len + phase)) - 1
+    n = int(math.floor(phase + t0 * u)) - 1
     guard = 0
-    while guard < 4096:
+    while guard < 8192:
         guard += 1
-        wrap_start = (n - phase) * seg_len
-        wrap_end = wrap_start + seg_len
+        wrap_start = (n - phase) / u
+        wrap_end = wrap_start + 1.0 / u
         n += 1
         if wrap_start >= t1:
             break
         s0 = max(t0, wrap_start)
         s1 = min(t1, wrap_end)
         if s1 > s0:
-            f0 = (s0 - wrap_start) / seg_len
-            f1 = (s1 - wrap_start) / seg_len
-            out.append((s0, s1, f0 * period_px - len_px, f1 * period_px - len_px))
+            f0 = (s0 - wrap_start) * u
+            f1 = (s1 - wrap_start) * u
+            out.append((s0, s1, f0 * travel - len_px, f1 * travel - len_px))
     return out
 
 
@@ -241,62 +255,129 @@ def _poly_ribbon(points, thickness):
     return " ".join(parts)
 
 
-def _bolt_points(x1, y1, x2, y2, displace, branches, width, rnd, trunk, branch_out, depth=0):
-    """پورت دقیق buildBolt در JS: بازگشتی، انشعاب با احتمال ۰٫۴ و طول ۰٫۴ قطعه."""
-    seg_len = math.hypot(x2 - x1, y2 - y1)
-    if displace < 2 or width < 0.55 or depth > 12 or seg_len < 1.5:
+def _mix_hex(color, other, ratio):
+    """ترکیب دو رنگ هگز (ratio = سهم other) — برای ساختن هسته‌ی روشن صاعقه."""
+    def _rgb(h):
+        h = str(h or "#ffffff").replace("#", "").strip()
+        if len(h) == 3:
+            h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]
+        try:
+            n = int(h, 16)
+        except ValueError:
+            n = 0xFFFFFF
+        return (n >> 16) & 255, (n >> 8) & 255, n & 255
+
+    r1, g1, b1 = _rgb(color)
+    r2, g2, b2 = _rgb(other)
+    ratio = _clamp(ratio, 0.0, 1.0)
+    return "#%02X%02X%02X" % (
+        int(round(r1 + (r2 - r1) * ratio)),
+        int(round(g1 + (g2 - g1) * ratio)),
+        int(round(b1 + (b2 - b1) * ratio)),
+    )
+
+
+# ------------------------------- ⚡ صاعقه -------------------------------
+
+def _storm_norm_corner(mode):
+    m = str(mode or "").lower().strip()
+    table = {
+        "tl": "tl", "left": "tl", "top-left": "tl", "topleft": "tl", "left-top": "tl",
+        "tr": "tr", "right": "tr", "top-right": "tr", "topright": "tr", "right-top": "tr",
+        "bl": "bl", "bottom-left": "bl", "bottomleft": "bl", "left-bottom": "bl",
+        "br": "br", "bottom-right": "br", "bottomright": "br", "right-bottom": "br",
+        "center": "center", "middle": "center", "top-center": "center", "topcenter": "center",
+        "random": "random", "rand": "random",
+        "alternate": "alternate", "auto": "alternate",
+    }
+    return table.get(m)
+
+
+def _storm_resolve_corner(mode, seed):
+    m = _storm_norm_corner(mode) or "alternate"
+    if m == "alternate":
+        return "tl" if ((seed >> 3) & 1) == 0 else "tr"
+    return m
+
+
+def _storm_corner_point(corner, res_w, res_h):
+    mx, ty = res_w * 0.05, res_h * 0.015
+    if corner == "tl":
+        return mx, ty
+    if corner == "tr":
+        return res_w - mx, ty
+    if corner == "bl":
+        return mx, res_h * 0.97
+    if corner == "br":
+        return res_w - mx, res_h * 0.97
+    if corner == "center":
+        return res_w * 0.5, ty
+    return res_w - mx, ty
+
+
+def _storm_is_top(corner):
+    return corner in ("tl", "tr", "center")
+
+
+def _storm_bolt_paths(x1, y1, x2, y2, displace, branches, width, color, rnd, trunk, branch_out, depth=0):
+    """پورت دقیق buildBoltSegments در lyrax-storm.js (همان ترتیب rnd() و همان احتمالات)."""
+    if displace < 2.5 or branches < 0 or depth > 20:
         trunk.append((x2, y2))
         return
+
     mx = (x1 + x2) / 2.0 + (rnd() - 0.5) * displace
     my = (y1 + y2) / 2.0 + (rnd() - 0.5) * displace
 
-    _bolt_points(x1, y1, mx, my, displace / 2.0, branches - 1, width, rnd, trunk, branch_out, depth + 1)
-    _bolt_points(mx, my, x2, y2, displace / 2.0, branches - 1, width, rnd, trunk, branch_out, depth + 1)
+    _storm_bolt_paths(x1, y1, mx, my, displace / 2.0, branches - 1, width * 0.92, color,
+                      rnd, trunk, branch_out, depth + 1)
+    _storm_bolt_paths(mx, my, x2, y2, displace / 2.0, branches - 1, width * 0.92, color,
+                      rnd, trunk, branch_out, depth + 1)
 
-    if branches > 0 and rnd() < 0.4:
+    if branches > 0 and rnd() < 0.5:
         angle = rnd() * math.pi * 2.0
-        blen = seg_len * 0.4
+        blen = math.hypot(x2 - x1, y2 - y1) * 0.38
         bx = mx + math.cos(angle) * blen
         by = my + math.sin(angle) * blen
+        branch_color = "#a8c0ff" if str(color).lower() in ("#ffffff", "#fff") else "#ffffff"
         pts = [(mx, my)]
-        _bolt_points(mx, my, bx, by, displace / 2.0, branches - 2, width * 0.6, rnd, pts, [], depth + 1)
-        branch_out.append({"points": pts, "width": max(1.0, width * 0.6)})
+        _storm_bolt_paths(mx, my, bx, by, displace / 2.5, branches - 2, width * 0.55,
+                          branch_color, rnd, pts, [], depth + 1)
+        branch_out.append({"points": pts, "color": branch_color})
 
 
-def _weather_start_point(mode, res_w, res_h, seed):
-    """معادل startPoint در JS (متناوب / گوشه‌ی ثابت / گوشه‌ی تصادفیِ قطعی)."""
-    margin = res_w * 0.05
-    top_y = res_h * 0.015
-    m = str(mode or "alternate")
-    if m == "random":
-        rnd = _Mulberry32((seed & 0xFFFFFFFF) + 0x51ED270B)
-        m = ["tl", "tr", "bl", "br"][int(rnd() * 4) % 4]
-    table = {"tl": (margin, top_y), "tr": (res_w - margin, top_y),
-             "bl": (margin, res_h * 0.97), "br": (res_w - margin, res_h * 0.97),
-             "left": (margin, top_y), "right": (res_w - margin, top_y),
-             "center": (res_w * 0.5, top_y)}
-    if m in table:
-        return table[m]
-    left = ((seed >> 3) & 1) == 0
-    return (margin if left else res_w - margin), top_y
+def _storm_bolt_geometry(seed, res_w, res_h, cfg):
+    """پورت ensureLightningGeometry — یک صاعقه با گوشه، شاخه و رنگِ همان رخداد تایم‌لاین."""
+    seed = (int(seed) & 0xFFFFFFFF) or 1
+    rnd = _Mulberry32(seed)
 
+    corner_base = _storm_resolve_corner(cfg.get("start"), seed)
+    branches = int(_clamp(cfg.get("branches") if cfg.get("branches") is not None else 3, 0, 8))
+    thickness_mul = _clamp(cfg.get("thickness") or 1.0, 0.2, 4.0)
+    intensity = _clamp((cfg.get("intensity") if cfg.get("intensity") is not None else 80) / 100.0, 0.0, 1.0)
+    inten_mul = 0.70 + 0.55 * intensity
+    scale = _clamp(max(res_w, res_h) / 700.0, 0.8, 1.8)
+    hue = str(cfg.get("color") or "#FFF700")
 
-def _bolt_alpha_at(p):
-    p = max(0.0, min(1.0, float(p)))
-    if p < 0.025:
-        return 1.0
-    if p > 0.82:
-        return max(0.0, (1.0 - p) / 0.18)
-    return 1.0
+    corner = corner_base
+    if corner == "random":
+        arr = ["tl", "tr", "bl", "br"]
+        corner = arr[int(rnd() * 4) % 4]
 
+    sx, sy = _storm_corner_point(corner, res_w, res_h)
 
-def _flash_level_at(p):
-    p = max(0.0, min(1.0, float(p)))
-    for limit, level in ((0.045, 0.62), (0.12, 0.18), (0.19, 0.46), (0.27, 0.08),
-                         (0.34, 0.30), (0.43, 0.05), (0.49, 0.15)):
-        if p < limit:
-            return level
-    return 0.0
+    ex = res_w * (0.1 + rnd() * 0.8)
+    ey = res_h * (0.5 + rnd() * 0.46) if _storm_is_top(corner) else res_h * (0.04 + rnd() * 0.46)
+
+    displace = min(res_w, res_h) * (0.22 + rnd() * 0.14)
+    width = (1.1 + rnd() * 1.7) * scale * thickness_mul * inten_mul
+    color = "#a8c0ff" if rnd() < 0.25 else hue
+
+    trunk = [(sx, sy)]
+    branch_list = []
+    _storm_bolt_paths(sx, sy, ex, ey, displace, branches, width, color, rnd, trunk, branch_list)
+
+    return {"trunk": trunk, "branches": branch_list, "color": color,
+            "width": width, "inten_mul": inten_mul}
 
 
 def detect_beat_times(audio_file_path, sensitivity=1.35, min_gap_sec=0.22, sample_rate=22050):
@@ -746,18 +827,18 @@ class FFmpegRenderer(RenderEngine):
     def _add_rain_dialogues(self, lines_out, windows, res_w, res_h, max_lines=6000):
         r"""باران با ترسیم برداری ASS — هر قطره، هر دور سقوط = یک Dialogue.
 
-        هندسه دقیقاً همان rainDropsAt در lyrax-weather.js است:
-            y(f) = f * period − len ,  f = (phase + t/8 × turns) mod 1
+        هندسه دقیقاً همان drawRainAt در lyrax-storm.js است:
+            y(t) = f × travel − len ,   f = frac(phase + t × speed × speedUnit)
         چون f خطی است، هر دور سقوط را می‌توان با یک `\move` عمودی رسم کرد؛ پس
         تعداد Dialogueها کم و سبک می‌ماند و حرکتِ تکرارشونده هم عیناً حفظ می‌شود.
         """
         if not windows:
             return 0
+
         cfg = self._rain_config()
-        drops = _bake_rain(cfg["density"])
-        period_px = _rain_period(drops, res_h, cfg.get("length") or 1.0)
-        opacity = max(0.02, min(1.0, float(cfg.get("opacity") or 30) / 100.0))
-        ang = float(cfg.get("angle") or 0) * math.pi / 180.0
+        drops = _storm_bake_rain(cfg["density"])
+        opacity = max(0.02, min(1.0, _clamp(cfg.get("opacity") or 30, 1, 100) / 100.0))
+        ang = _clamp(cfg.get("angle") if cfg.get("angle") is not None else 8, -45, 45) * math.pi / 180.0
         slant_x, slant_y = math.sin(ang), math.cos(ang)
         base_fill = self._hex_to_ass_color(str(cfg.get("color") or "#AEC2E0"))
         min_dim = min(res_w, res_h)
@@ -766,19 +847,19 @@ class FFmpegRenderer(RenderEngine):
         est = 0
         for w0, w1 in windows:
             for drop in drops:
-                est += len(_iter_rain_segments(drop, cfg, res_h, period_px, w0, w1))
+                est += len(_iter_storm_rain_segments(drop, cfg, res_h, w0, w1))
         step = 1 if est <= max_lines else int(math.ceil(est / float(max_lines)))
 
         seen = 0
         written = 0
         for w0, w1 in windows:
             for drop in drops:
-                len_px = _rain_len_px(drop["len"], res_h, cfg.get("length") or 1.0)
-                width_px = max(1.4, min_dim * 0.0013 * drop["width"])
+                len_px = _storm_rain_len_px(drop, res_h, cfg.get("length") or 1.0)
+                width_px = max(1.0, min_dim * 0.0013 * drop["width"])
                 alpha = max(0.02, min(1.0, opacity * drop["alpha"]))
                 alpha_hex = f"&H{int(round((1.0 - alpha) * 255)):02X}&"
                 x_px = max(0.0, min(float(res_w), drop["x"] * res_w))
-                for (t0, t1, y0, y1) in _iter_rain_segments(drop, cfg, res_h, period_px, w0, w1):
+                for (t0, t1, y0, y1) in _iter_storm_rain_segments(drop, cfg, res_h, w0, w1):
                     seen += 1
                     if step > 1 and (seen % step) != 0:
                         continue
@@ -819,75 +900,74 @@ class FFmpegRenderer(RenderEngine):
         return cfg
 
     def _add_weather_fx_dialogues(self, lines_out, res_w, res_h, total_duration):
-        """رخدادهای lightning_storm تایم‌لاین، با همان هندسهٔ بازگشتیِ ماژول."""
+        """رخدادهای lightning_storm تایم‌لاین با همان هندسهٔ lyrax-storm.js.
+
+        هندسه (گوشه‌ی شروع، مقصد، displacement، شاخه‌ها، رنگ و ضخامت) بیت‌به‌بیت از
+        seed همان رخداد ساخته می‌شود؛ یعنی پیش‌نمایش مرورگر و این رندر یکی‌اند.
+        سه‌پاس هاله/بدنه/هسته با همان ضرایب STORM_BOLT_PASSES و فلاش کوتاه پشت
+        صحنه هم از همان منحنی ماژول نمونه‌برداری می‌شود.
+        """
         fx = getattr(self.project, "layer_fx", None) or []
         if not isinstance(fx, list):
             return 0
 
         cfg = self._weather_lightning_config()
-        try:
-            intensity = max(0.0, min(1.0, float(cfg.get("intensity") or 80) / 100.0))
-        except (TypeError, ValueError):
-            intensity = 0.8
-        color_hex = str(cfg.get("color") or "#FFF700")
-        try:
-            thickness_base = 6.5 * (0.70 + 0.55 * intensity) * float(cfg.get("thickness") or 1.0)
-        except (TypeError, ValueError):
-            thickness_base = 6.5 * (0.70 + 0.55 * intensity)
-        try:
-            branches = int(cfg.get("branches"))
-        except (TypeError, ValueError):
-            branches = 3
-        min_dim = min(res_w, res_h)
-        displace = min_dim * 0.16
-        fill = self._hex_to_ass_color(color_hex)
-        white = self._hex_to_ass_color("#FFFFFF")
-
         written = 0
+
         for ev in fx:
             if not isinstance(ev, dict) or ev.get("type") != "lightning_storm":
                 continue
             try:
                 t0 = max(0.0, float(ev.get("t", 0) or 0))
-                dur = max(0.12, float(ev.get("duration", 2.4) or 2.4))
+                dur = max(0.12, float(ev.get("duration", 1.2) or 1.2))
             except (TypeError, ValueError):
                 continue
             if t0 > total_duration:
                 continue
 
             seed = _js_hash_string("lightning_storm|%.3f" % t0)
-            rnd = _Mulberry32((seed + 0x9E3779B9) & 0xFFFFFFFF)
-            sx, sy = _weather_start_point(cfg.get("start"), res_w, res_h, seed)
-            ex = max(res_w * 0.06, min(res_w * 0.94, sx + (rnd() - 0.5) * res_w * 0.95))
-            ey = max(res_h * 0.22, min(res_h * 0.95, sy + res_h * (0.38 + rnd() * 0.42)))
+            geo = _storm_bolt_geometry(seed, res_w, res_h, cfg)
+            if not geo:
+                continue
 
-            trunk = [(sx, sy)]
-            branch_list = []
-            _bolt_points(sx, sy, ex, ey, displace, branches, thickness_base, rnd, trunk, branch_list)
+            # زنجیره‌ها: تنه + شاخه‌ها (هرکدام یک خط شکسته)
+            chains = [{"points": geo["trunk"], "color": geo["color"], "width": geo["width"]}]
+            for br in geo["branches"]:
+                chains.append({"points": br["points"], "color": br["color"],
+                               "width": geo["width"] * 0.55})
 
-            for width_mul, col, level in ((2.6, fill, 0.20), (1.0, fill, 0.92), (0.36, white, 1.0)):
-                alpha_hex = f"&H{int(round((1.0 - level) * 255)):02X}&"
-                path = _poly_ribbon(trunk, max(1.2, thickness_base * width_mul))
-                for br in branch_list:
-                    sub = _poly_ribbon(br["points"], max(1.0, br["width"] * width_mul))
-                    if sub:
-                        path = (path + " " + sub) if path else sub
-                if not path:
+            fade_ms = int(dur * 750)          # محو تدریجی ≈ pow(1−p, 0.72) در ماژول
+            for chain in chains:
+                if len(chain["points"]) < 2:
                     continue
-                override = (
-                    f"{{\\an7\\pos(0,0)\\p1\\1c{col}\\3c{col}\\bord0\\shad0"
-                    f"\\alpha{alpha_hex}\\fad(0,{int(dur * 220)})}}"
-                )
-                lines_out.append(
-                    "Dialogue: 3,%s,%s,Watermark,,0,0,0,,%s%s{\\p0}"
-                    % (self._format_ass_time(t0), self._format_ass_time(t0 + dur), override, path)
-                )
-                written += 1
+                for index, (width_mul, level) in enumerate(STORM_BOLT_PASSES):
+                    thickness = max(1.2, chain["width"] * 0.75 * width_mul)
+                    path = _poly_ribbon(chain["points"], thickness)
+                    if not path:
+                        continue
+                    # هسته‌ی آخر کمی به سفید می‌زند تا درخشش ترکیبی مرورگر حس شود
+                    color = chain["color"] if index < 2 else _mix_hex(chain["color"], "#FFFFFF", 0.55)
+                    fill = self._hex_to_ass_color(color)
+                    alpha_hex = f"&H{int(round((1.0 - level) * 255)):02X}&"
+                    override = (
+                        f"{{\\an7\\pos(0,0)\\p1\\1c{fill}\\3c{fill}\\bord0\\shad0"
+                        f"\\alpha{alpha_hex}\\fad(0,{fade_ms})}}"
+                    )
+                    lines_out.append(
+                        "Dialogue: 3,%s,%s,Watermark,,0,0,0,,%s%s{\\p0}"
+                        % (self._format_ass_time(t0), self._format_ass_time(t0 + dur), override, path)
+                    )
+                    written += 1
 
+            # فلاش پس‌زمینه: نمونه‌برداری از همان منحنی ماژول
             full = f"m 0 0 l {res_w} 0 l {res_w} {res_h} l 0 {res_h}"
             flash_fill = self._hex_to_ass_color("#D9E7FF")
-            for (f0, f1, level) in FLASH_WINDOWS:
-                a = max(0.0, min(0.30, level * 0.40))
+            steps = 8
+            for i in range(steps):
+                p0 = (i / float(steps)) * STORM_FLASH_SPAN
+                p1 = ((i + 1) / float(steps)) * STORM_FLASH_SPAN
+                level = (1.0 - ((p0 + p1) / 2.0) / STORM_FLASH_SPAN) * STORM_FLASH_ALPHA * geo["inten_mul"]
+                a = max(0.0, min(0.30, level))
                 if a <= 0.005:
                     continue
                 alpha_hex = f"&H{int(round((1.0 - a) * 255)):02X}&"
@@ -897,11 +977,12 @@ class FFmpegRenderer(RenderEngine):
                 )
                 lines_out.append(
                     "Dialogue: 3,%s,%s,Watermark,,0,0,0,,%s%s{\\p0}"
-                    % (self._format_ass_time(t0 + dur * f0),
-                       self._format_ass_time(t0 + dur * f1),
+                    % (self._format_ass_time(t0 + dur * p0),
+                       self._format_ass_time(t0 + dur * p1),
                        override, full)
                 )
                 written += 1
+
         return written
 
     def _estimate_ass_text_width_px(self, text, font_size):

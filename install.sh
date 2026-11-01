@@ -30,8 +30,10 @@ cp -f "$HERE/backend/renderers.py" "$TARGET/backend/renderers.py"
 echo "۲) ماژول‌های جاوااسکریپت"
 mkdir -p "$TARGET/js/modules"
 backup "$TARGET/js/modules/lyrax-fx.js"
+backup "$TARGET/js/modules/lyrax-storm.js"
 cp -f "$HERE/studio/js/modules/lyrax-weather.js" "$TARGET/js/modules/lyrax-weather.js"
 cp -f "$HERE/studio/js/modules/lyrax-fx.js"       "$TARGET/js/modules/lyrax-fx.js"
+cp -f "$HERE/studio/js/modules/lyrax-storm.js"    "$TARGET/js/modules/lyrax-storm.js"
 
 echo "۳) داشبورد"
 if [ -f "$TARGET/lyrax-studio-pro-v4.html" ]; then
