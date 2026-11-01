@@ -363,15 +363,83 @@
             align-items: start;
         }
 
+        /* 📱 تب ۱ روی موبایل: اول بوم کلیپ و دکمه‌ها، بعد لیریکس و تنظیمات.
+           بوم جمع‌وجور و چسبیده می‌ماند تا هم موقع تپ‌کردن خطوط دیده شود، هم کلیدهای افکت زیرش بیایند. */
         @media (max-width: 1250px) {
             .workspace-grid { grid-template-columns: 1fr; }
+            .workspace-grid > .canvas-col { order: -1; }
+            .canvas-col { width: 100%; }
+            .canvas-wrapper { width: min(84vw, 320px); height: min(42vh, 500px); }
         }
 
-        /* 📱 روی گوشی دکمه‌های لمسی «صاعقه / باران» تمام‌عرض و انگشت‌خور باشند */
         @media (max-width: 560px) {
-            #quickFxRow { flex-direction: column; }
-            #quickFxRow > .btn { width: 100%; min-width: 0 !important; flex: none !important; }
+            .canvas-col { padding: 0.6rem; gap: 0.5rem; }
+            .canvas-wrapper { width: min(60vw, 250px); height: min(35vh, 380px); }
+            .player-controls-row { gap: 6px !important; }
+            .player-controls-row .btn {
+                flex: 1 1 0; min-width: 0 !important;
+                padding: 0.5rem 0.25rem; font-size: 0.78rem; line-height: 1.25;
+                white-space: normal; word-break: break-word;
+            }
+            .giant-next-btn { padding: 0.55rem 0.6rem !important; font-size: 0.92rem !important; gap: 0.45rem; }
+            .giant-next-btn span:first-child { font-size: 1.25rem !important; }
+            #btnCleanRender { padding: 0.55rem !important; font-size: 0.85rem !important; }
+            #quickFxRow { grid-template-columns: 1fr 1fr; }
+            .fx-chip { font-size: 0.82rem; padding: 0.55rem 0.25rem; }
         }
+
+        /* ---------- 🎬 پنل «افکت‌های آماده» (زیر ردیف پخش، بالای صفحه) ---------- */
+        .quick-fx-panel {
+            width: 100%;
+            display: flex; flex-direction: column; gap: 8px;
+            background: rgba(148, 163, 184, 0.07);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 0.7rem;
+        }
+        .quick-fx-head {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 8px; flex-wrap: wrap;
+            font-size: 0.9rem; font-weight: 900; color: var(--lemon);
+        }
+        .fx-time-chip {
+            font-size: 0.78rem; font-weight: 800;
+            padding: 0.25rem 0.6rem; border-radius: 999px;
+            background: rgba(56, 189, 248, 0.16); color: #7dd3fc;
+            border: 1px solid rgba(56, 189, 248, 0.45);
+            cursor: pointer; white-space: nowrap;
+        }
+        .fx-time-chip.selected {
+            background: rgba(255, 240, 0, 0.18); color: #FFF000;
+            border-color: rgba(255, 240, 0, 0.6);
+        }
+        #quickFxRow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+        .fx-chip {
+            display: flex; align-items: center; justify-content: center; gap: 4px;
+            padding: 0.6rem 0.35rem; border-radius: 12px; cursor: pointer;
+            background: rgba(226, 232, 240, 0.08); color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            font-weight: 800; font-size: 0.88rem; font-family: inherit;
+            transition: transform 0.12s ease, background 0.15s ease;
+            min-height: 44px;
+        }
+        .fx-chip:hover { background: rgba(226, 232, 240, 0.16); }
+        .fx-chip:active { transform: scale(0.95); }
+        .fx-chip.fx-lightning { background: linear-gradient(135deg, #263d9b, #a8c0ff); color: #fff; border: none; font-weight: 900; }
+        .fx-chip.fx-rain { background: linear-gradient(135deg, #075985, #7dd3fc); color: #06111b; border: none; font-weight: 900; }
+        .fx-chip.fx-brand { background: linear-gradient(135deg, #7c2d12, #FFF000); color: #1a1a1a; border: none; font-weight: 900; }
+        .fx-chip:disabled { opacity: 0.45; cursor: not-allowed; }
+        .quick-fx-toggles { display: flex; gap: 6px; flex-wrap: wrap; }
+        .fx-toggle {
+            flex: 1 1 140px; padding: 0.45rem 0.6rem; border-radius: 10px; cursor: pointer;
+            background: rgba(125, 211, 252, 0.10); color: #7dd3fc;
+            border: 1px solid rgba(125, 211, 252, 0.35);
+            font-family: inherit; font-weight: 800; font-size: 0.82rem;
+        }
+        .fx-toggle.on { background: rgba(125, 211, 252, 0.28); color: #e0f2fe; box-shadow: 0 0 0 2px rgba(125,211,252,0.45) inset; }
+        .row-fx-box { display: flex; align-items: center; justify-content: center; gap: 4px; }
+        .row-fx-box select { padding: 2px 4px; font-size: 0.78rem; border-radius: 6px; max-width: 105px; }
+        tr.time-selected td { background: rgba(255, 240, 0, 0.08); }
 
         .canvas-col {
             display: flex;
@@ -656,13 +724,40 @@ Email : Hadi.tabatabaei@gmail.com
                         <button class="btn btn-danger" id="btnStop" onclick="stopPlayback()" disabled>⏹️ توقف</button>
                     </div>
 
-                    <button class="btn" id="btnCleanRender" onclick="startCleanReRender()" style="background:linear-gradient(135deg, #10b981, #059669); color:#fff; width:100%; font-weight:bold; padding:0.75rem; margin-top:0.4rem; font-size:0.98rem; box-shadow:0 4px 15px rgba(16,185,129,0.3);">
-                        ✨ رندر نهایی تمیز و دقیق (بدون تأخیر دستی و با همگام‌سازی میلی‌ثانیه‌ای)
-                    </button>
-
                     <button class="giant-next-btn" id="btnGiantNext" onclick="stepNext()" disabled>
                         <span style="font-size:1.8rem;">👆</span>
                         <span>تپ روی گوشی: نمایش و ثبت خط بعدی</span>
+                    </button>
+
+                    <!-- ⚡🎬 افکت‌های آماده — دقیقاً زیر کلیپ‌ساز و دکمه‌ها تا موقع ساخت کلیپ در دسترس باشند
+                         تپ روی هر چیپ = ثبت همان افکت در «لحظهٔ پخش» یا در «ثانیهٔ انتخابی» گرید. -->
+                    <div class="quick-fx-panel" id="quickFxPanel">
+                        <div class="quick-fx-head">
+                            <span>🎬 افکت‌های آماده</span>
+                            <button class="fx-time-chip" id="fxTimeChip" onclick="clearSelectedTimelineTime()"
+                                    title="اگر از گرید یک ثانیه انتخاب کنی، افکت‌ها همان‌جا ثبت می‌شوند. برای لغو کلیک کن.">
+                                ⏱ همین لحظهٔ پخش
+                            </button>
+                        </div>
+
+                        <div id="quickFxRow">
+                            <button class="fx-chip fx-lightning" id="btnQuickLightning" data-fx="lightning_storm" onclick="fxTriggerFromUI('lightning_storm')">⚡ صاعقه</button>
+                            <button class="fx-chip fx-rain" id="btnQuickRainStorm" data-fx="rain_storm" onclick="fxTriggerFromUI('rain_storm')">🌧️ رگبار</button>
+                            <button class="fx-chip" data-fx="fireworks" onclick="fxTriggerFromUI('fireworks')">🎆 آتش‌بازی</button>
+                            <button class="fx-chip" data-fx="shockwave" onclick="fxTriggerFromUI('shockwave')">🌊 موج شوک</button>
+                            <button class="fx-chip" data-fx="ember_rain" onclick="fxTriggerFromUI('ember_rain')">✨ باران جرقه</button>
+                            <button class="fx-chip" data-fx="strobe_flash" onclick="fxTriggerFromUI('strobe_flash')">💥 فلاش</button>
+                            <button class="fx-chip fx-brand" data-fx="brand" onclick="fxTriggerFromUI('brand')">⚡ برند</button>
+                        </div>
+
+                        <div class="quick-fx-toggles">
+                            <button class="fx-toggle" id="btnQuickRain" onclick="toggleRainOverlayQuick()">🌧️ باران پیوسته: خاموش</button>
+                            <button class="fx-toggle" id="btnQuickLightningAuto" onclick="toggleLightningQuick()">⚡ صاعقه‌های خودکار: خاموش</button>
+                        </div>
+                    </div>
+
+                    <button class="btn" id="btnCleanRender" onclick="startCleanReRender()" style="background:linear-gradient(135deg, #10b981, #059669); color:#fff; width:100%; font-weight:bold; padding:0.75rem; margin-top:0.4rem; font-size:0.98rem; box-shadow:0 4px 15px rgba(16,185,129,0.3);">
+                        ✨ رندر نهایی تمیز و دقیق (تا آخر موزیک، بدون تأخیر دستی)
                     </button>
 
                     <!-- سه دکمه‌ی سریع رعدوبرق، دقیقاً همین‌جا کنار تپ‌کردن خط‌ها -->
@@ -671,25 +766,25 @@ Email : Hadi.tabatabaei@gmail.com
                         <button class="btn btn-danger" onclick="manualTriggerLightning(2)" style="flex:1; min-width:150px; font-weight:bold; font-size:1.05rem;">🌩️ رعد قوی و پیچیده (شاخه‌دار)</button>
                     </div>
 
-                    <!-- ⚡ صاعقه و 🌧️ بارش — کلیدهای لمسی همین تب اصلی
-                         (کلید میانبر L/R فقط با کیبورد فیزیکی ویندوز کار می‌کند؛ روی موبایل این دکمه‌ها را بزن) -->
-                    <div id="quickFxRow" style="display:flex; gap:8px; flex-wrap:wrap; margin-top:0.3rem;">
-                        <button class="btn" id="btnQuickLightning" onclick="fxTriggerFromUI('lightning_storm')"
-                                style="flex:2; min-width:170px; background:linear-gradient(135deg,#263d9b,#a8c0ff); color:#fff; border:none; font-weight:900; font-size:1.05rem; padding:0.8rem 0.6rem;">⚡ صاعقه روی کلیپ</button>
-                        <button class="btn" id="btnQuickRain" onclick="toggleRainOverlayQuick()"
-                                style="flex:1.4; min-width:150px; background:linear-gradient(135deg,#075985,#7dd3fc); color:#06111b; border:none; font-weight:900; font-size:0.98rem; padding:0.8rem 0.6rem;">🌧️ باران: خاموش</button>
-                        <button class="btn" id="btnQuickRainStorm" onclick="fxTriggerFromUI('rain_storm')"
-                                style="flex:1; min-width:140px; background:rgba(125,211,252,0.14); color:#7dd3fc; border:1px solid rgba(125,211,252,0.55); font-weight:800; font-size:0.9rem; padding:0.8rem 0.6rem;">🌧️ یک رگبار ۸ ثانیه‌ای</button>
-                    </div>
                     <small id="quickFxHint" style="color:var(--text-muted); font-size:0.8rem; line-height:1.8; display:block;">
-                        هر تپ، افکت را دقیقاً در همین ثانیهٔ پخش روی تایم‌لاین ثبت می‌کند (دقیقاً همان کاری که کلید L/R در ویندوز می‌کند).
+                        هر تپ، افکت را دقیقاً در همین ثانیهٔ پخش ثبت می‌کند (همان کار کلید L/R در ویندوز).
+                        اگر از جدول یک ثانیه انتخاب کنی (دکمهٔ ⏱ کنار هر ردیف)، افکت در همان ثانیه ثبت می‌شود.
                     </small>
 
                     <!-- لینک دانلود کلیپ ساخته شده (خواسته‌ی شماره ۱) -->
                     <div class="video-download-card" id="recordedVideoContainer">
                         <span style="color:var(--success); font-weight:900; font-size:1.05rem;">🎬 مژده! کلیپ ویدیویی شما ساخته شد:</span>
+                        <span id="clipDurationLine" style="color:var(--text-muted); font-size:0.85rem;"></span>
                         <video id="outputVideo" controls playsinline style="max-height:280px; width:100%; border-radius:12px; border:1px solid #333;"></video>
                         <a id="downloadVideoLink" class="btn btn-success" style="width:100%; font-size:1.05rem; padding:0.9rem;">📥 دانلود فایل ویدیویی کلیپ (WebM / MP4)</a>
+                        <button class="btn" id="btnBundleDownload" onclick="downloadClipBundle()"
+                                style="width:100%; font-size:1.0rem; padding:0.9rem; background:linear-gradient(135deg,#7c3aed,#2563eb); color:#fff; font-weight:900; border:none;">
+                            📦 دانلود بستهٔ کامل پروژه (JSON + ویدیو + اسکریپت MP4)
+                        </button>
+                        <small style="color:var(--text-muted); font-size:0.78rem; line-height:1.8; display:block; text-align:right;">
+                            داخل بسته: <code>&lt;نام کلیپ&gt;_project.json</code> با تایم تمام خطوط و همهٔ افکت‌ها،
+                            خود ویدیو، و <code>make_mp4.sh</code> برای تبدیل به MP4 در Termux.
+                        </small>
                     </div>
                 </div>
 
@@ -739,11 +834,12 @@ Email : Hadi.tabatabaei@gmail.com
                                 <th style="width:190px;">شروع (s)</th>
                                 <th style="width:190px;">پایان (s)</th>
                                 <th style="width:80px;">مدت dt</th>
+                                <th style="width:170px;">🎬 افکت این ردیف</th>
                                 <th style="width:60px;">حذف</th>
                             </tr>
                         </thead>
                         <tbody id="dataGridBody">
-                            <tr><td colspan="6" style="padding:2rem; color:var(--text-muted);">روی «▶️ شروع ضبط زنده» کلیک کرده و تپ کنید تا خطوط ثبت شوند، یا یک فایل JSON بازخوانی کنید</td></tr>
+                            <tr><td colspan="7" style="padding:2rem; color:var(--text-muted);">روی «▶️ شروع ضبط زنده» کلیک کرده و تپ کنید تا خطوط ثبت شوند، یا یک فایل JSON بازخوانی کنید</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -3628,16 +3724,15 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     return null;
   }
 
+  // شروع دقیقاً از گوشهٔ بوم (مثل صاعقه.html) — نه با حاشیه
   function cornerPoint(corner, W, H) {
-    var mx = W * 0.05;
-    var ty = H * 0.015;
     switch (corner) {
-      case "tl": return { x: mx, y: ty };
-      case "tr": return { x: W - mx, y: ty };
-      case "bl": return { x: mx, y: H * 0.97 };
-      case "br": return { x: W - mx, y: H * 0.97 };
-      case "center": return { x: W * 0.5, y: ty };
-      default: return { x: W - mx, y: ty };
+      case "tl": return { x: 0, y: 0 };
+      case "tr": return { x: W, y: 0 };
+      case "bl": return { x: 0, y: H };
+      case "br": return { x: W, y: H };
+      case "center": return { x: W * 0.5, y: 0 };
+      default: return { x: W, y: 0 };
     }
   }
 
@@ -3662,33 +3757,40 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     return corner;
   }
 
-  // ساخت مسیر صاعقه: recursive midpoint displacement + انشعاب (همان نمونهٔ lightning_storm)
+  // ساخت مسیر صاعقه — دقیقاً مثل صاعقه.html:
+  //   • تنه تا وقتی displace < 2.5 یا عمق > 16 ادامه می‌دهد (پس صاعقه «خط» نمی‌شود)
+  //   • شمارندهٔ branches فقط درِ شاخه‌هاست، نه عمق تنه
+  //   • شاخه در جهت حرکتِ همان قطعه ± ۰٫۹۵ رادیان بیرون می‌زند
   function buildBoltSegments(x1, y1, x2, y2, displace, branches, width, color, rnd, out, depth) {
     depth = depth || 0;
 
-    if (displace < 2.5 || branches < 0 || depth > 20) {
+    if (displace < 2.5 || depth > 16) {
       out.push({
         x1: x1, y1: y1, x2: x2, y2: y2,
-        width: Math.max(0.1, width),
+        width: Math.max(0.35, width),
         color: color || "#ffffff"
       });
       return;
     }
 
-    var midX = (x1 + x2) / 2 + (rnd() - 0.5) * displace;
-    var midY = (y1 + y2) / 2 + (rnd() - 0.5) * displace;
+    var midX = (x1 + x2) / 2;
+    var midY = (y1 + y2) / 2;
+    var nx = midX + (rnd() - 0.5) * displace;
+    var ny = midY + (rnd() - 0.5) * displace;
 
-    buildBoltSegments(x1, y1, midX, midY, displace / 2, branches - 1, width * 0.92, color, rnd, out, depth + 1);
-    buildBoltSegments(midX, midY, x2, y2, displace / 2, branches - 1, width * 0.92, color, rnd, out, depth + 1);
+    buildBoltSegments(x1, y1, nx, ny, displace / 2, branches - 1, width * 0.92, color, rnd, out, depth + 1);
+    buildBoltSegments(nx, ny, x2, y2, displace / 2, branches - 1, width * 0.92, color, rnd, out, depth + 1);
 
-    if (branches > 0 && rnd() < 0.5) {
-      var angle = rnd() * Math.PI * 2;
-      var branchLen = Math.hypot(x2 - x1, y2 - y1) * 0.38;
-      var bx = midX + Math.cos(angle) * branchLen;
-      var by = midY + Math.sin(angle) * branchLen;
+    if (branches > 0 && rnd() < 0.38) {
+      var ddy = (ny - y1) || 1;
+      var ddx = (nx - x1) || 1;
+      var angle = Math.atan2(ddy, ddx) + (rnd() - 0.5) * 1.9;
+      var branchLen = Math.hypot(x2 - x1, y2 - y1) * (0.25 + rnd() * 0.42);
+      var bx = nx + Math.cos(angle) * branchLen;
+      var by = ny + Math.sin(angle) * branchLen;
       var branchColor = (color === "#ffffff" || color === "#fff") ? "#a8c0ff" : "#ffffff";
 
-      buildBoltSegments(midX, midY, bx, by, displace / 2.5, branches - 2, width * 0.55, branchColor, rnd, out, depth + 1);
+      buildBoltSegments(nx, ny, bx, by, displace * 0.7, branches - 2, width * 0.6, branchColor, rnd, out, depth + 1);
     }
   }
 
@@ -3756,11 +3858,14 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     var rnd = mulberry32(ev.seed || 1);
     var bolts = [];
     var baseCorner = ev.corner || "random";
-    var scale = clamp(Math.max(W, H) / 700, 0.8, 1.8);
+    // مقیاس ضخامت/هاله نسبت به اندازهٔ بوم (نمونهٔ صاعقه.html در ۳۸۰×۷۰۰ کشیده شده بود)
+    var scale = clamp(Math.max(W, H) / 700, 0.8, 3.0);
     var intenMul = 0.70 + 0.55 * clamp((ev.intensity === undefined ? 80 : ev.intensity) / 100, 0, 1);
     var thicknessMul = clamp(ev.thickness === undefined ? 1 : ev.thickness, 0.2, 4);
+    var boltCount = clamp(ev.boltCount === undefined ? 1 : ev.boltCount, 1, 8);
+    var branches = clamp(ev.branches === undefined ? 4 : ev.branches, 0, 8);
 
-    for (var i = 0; i < ev.boltCount; i++) {
+    for (var i = 0; i < boltCount; i++) {
       var corner = baseCorner;
 
       if (corner === "random") {
@@ -3777,59 +3882,139 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         start.y = clamp(start.y, 0, H);
       }
 
-      var endX = W * (0.1 + rnd() * 0.8);
+      // مقصد: مثل randomTarget در نمونه — همیشه داخل کادر
+      var endX = W * (0.12 + rnd() * 0.76);
       var endY = isTopCorner(corner)
-        ? H * (0.5 + rnd() * 0.46)
-        : H * (0.04 + rnd() * 0.46);
+        ? H * (0.54 + rnd() * 0.43)
+        : H * (0.03 + rnd() * 0.43);
 
-      var baseDisplace = Math.min(W, H) * (0.22 + rnd() * 0.14);
-      var width = (1.1 + rnd() * 1.7) * scale * thicknessMul * intenMul;
-      var color = rnd() < 0.25 ? "#a8c0ff" : (ev.hue || "#ffffff");
+      var baseDisplace = Math.min(W, H) * 0.26 + 26;
+      var width = (1.2 + rnd() * 1.6) * scale * thicknessMul * intenMul;
+      var color = rnd() > 0.62 ? "#a8c0ff" : (ev.hue || "#ffffff");
 
       var segments = [];
-      buildBoltSegments(start.x, start.y, endX, endY, baseDisplace, ev.branches, width, color, rnd, segments, 0);
+      buildBoltSegments(start.x, start.y, endX, endY, baseDisplace, branches, width, color, rnd, segments, 0);
 
       bolts.push({ segments: segments, start: start, endX: endX, endY: endY, color: color });
     }
 
-    var geom = { W: W, H: H, bolts: bolts };
+    var geom = { W: W, H: H, scale: scale, bolts: bolts };
     ev._geom = geom;
     ev._geomKey = key;
     return geom;
   }
 
-  function drawSegments(ctx, segments, alpha) {
-    if (!segments || !segments.length || alpha <= 0.003) return;
+  // سه‌پاس ضربه‌قلم روی یک مسیر (هاله / بدنه / مغز) — مثل حلقهٔ سه‌بارهٔ نمونه
+  var BOLT_PASSES = [0.55, 1.10, 1.65];
 
-    var passes = [
-      { width: 3.4, alpha: 0.16, blur: 26 },
-      { width: 1.7, alpha: 0.42, blur: 12 },
-      { width: 1.0, alpha: 1.00, blur: 4 }
-    ];
-
-    ctx.save();
+  function paintSegments(ctx, segments, scale, alpha) {
+    if (!segments || !segments.length) return;
     ctx.globalCompositeOperation = "lighter";
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
 
-    for (var p = 0; p < passes.length; p++) {
-      var pass = passes[p];
-      ctx.globalAlpha = clamp(alpha * pass.alpha, 0, 1);
-
+    for (var p = 0; p < BOLT_PASSES.length; p++) {
+      ctx.globalAlpha = alpha;
       for (var i = 0; i < segments.length; i++) {
         var s = segments[i];
-
+        var w = Math.max(0.35, s.width * BOLT_PASSES[p]);
         ctx.beginPath();
         ctx.moveTo(s.x1, s.y1);
         ctx.lineTo(s.x2, s.y2);
-        ctx.lineWidth = Math.max(0.15, s.width * pass.width);
+        ctx.lineWidth = w;
         ctx.strokeStyle = s.color;
-        ctx.shadowBlur = Math.min(32, pass.blur * (s.width * 0.7 + 0.4));
+        ctx.shadowBlur = Math.min(24 * scale, w * 6);
         ctx.shadowColor = s.color;
         ctx.stroke();
       }
     }
+    ctx.shadowBlur = 0;
+  }
 
+  /* ---------- کش کردن هر ضربه در یک اسپرایت (تصویر آماده) ----------
+     چرا؟ صاعقهٔ شاخه‌دار ~۵۰۰ قطعه دارد و ۳ پاس = ~۱۵۰۰ ضربه‌قلم با shadowBlur
+     در هر فریم. یک‌بار روی بوم مخفی کشیده می‌شود و بعد هر فریم فقط drawImage
+     با آلفای متغیر انجام می‌شود ⇒ همان جزئیات، بدون سنگینی روی گوشی. */
+
+  var spriteOwners = [];
+  var SPRITE_MAX = 4;
+
+  function createSpriteCanvas(w, h) {
+    if (typeof document !== "undefined" && document.createElement) {
+      var c = document.createElement("canvas");
+      c.width = w;
+      c.height = h;
+      return c;
+    }
+    if (typeof OffscreenCanvas !== "undefined") return new OffscreenCanvas(w, h);
+    return null;
+  }
+
+  function ensureLightningSprite(ev, W, H) {
+    var geom = ensureLightningGeometry(ev, W, H);
+    if (!geom) return null;
+
+    if (ev._sprite && ev._spriteKey === ev._geomKey) return ev._sprite;
+
+    var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity, any = false;
+    for (var b = 0; b < geom.bolts.length; b++) {
+      var segs = geom.bolts[b].segments;
+      for (var i = 0; i < segs.length; i++) {
+        var sg = segs[i];
+        if (sg.x1 < minX) minX = sg.x1;
+        if (sg.x2 < minX) minX = sg.x2;
+        if (sg.x1 > maxX) maxX = sg.x1;
+        if (sg.x2 > maxX) maxX = sg.x2;
+        if (sg.y1 < minY) minY = sg.y1;
+        if (sg.y2 < minY) minY = sg.y2;
+        if (sg.y1 > maxY) maxY = sg.y1;
+        if (sg.y2 > maxY) maxY = sg.y2;
+        any = true;
+      }
+    }
+    if (!any) return null;
+
+    var pad = Math.round(geom.scale * 26) + 12;
+    minX -= pad; minY -= pad; maxX += pad; maxY += pad;
+
+    var cw = Math.max(1, Math.round(maxX - minX));
+    var ch = Math.max(1, Math.round(maxY - minY));
+
+    // سقف حافظه: اگر اسپرایت بزرگ شد، با نسبت کوچک‌تر ساخته می‌شود (کیفیت عملاً یکی است)
+    var MAX_SPRITE_PIXELS = 8e6;
+    var kScale = 1;
+    if (cw * ch > MAX_SPRITE_PIXELS) kScale = Math.sqrt(MAX_SPRITE_PIXELS / (cw * ch));
+
+    var canvas = createSpriteCanvas(Math.max(1, Math.round(cw * kScale)),
+                                   Math.max(1, Math.round(ch * kScale)));
+    if (!canvas) return null;
+    var c2 = canvas.getContext("2d");
+    if (!c2) return null;
+
+    if (kScale !== 1) c2.scale(kScale, kScale);
+    c2.translate(-minX, -minY);
+    for (var b2 = 0; b2 < geom.bolts.length; b2++) {
+      paintSegments(c2, geom.bolts[b2].segments, geom.scale, 1);
+    }
+
+    var sprite = { canvas: canvas, x: minX, y: minY, w: cw, h: ch };
+    ev._sprite = sprite;
+    ev._spriteKey = ev._geomKey;
+
+    // فقط ۴ اسپرایت آخر نگه داشته می‌شود
+    spriteOwners.push(ev);
+    while (spriteOwners.length > SPRITE_MAX) {
+      var old = spriteOwners.shift();
+      if (old && old !== ev) { old._sprite = null; old._spriteKey = ""; }
+    }
+
+    return sprite;
+  }
+
+  function drawSegments(ctx, segments, alpha) {
+    if (!segments || !segments.length || alpha <= 0.003) return;
+    ctx.save();
+    paintSegments(ctx, segments, 1, clamp(alpha, 0, 1));
     ctx.restore();
   }
 
@@ -3846,7 +4031,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 
     var intenMul = 0.70 + 0.55 * clamp((ev.intensity === undefined ? 80 : ev.intensity) / 100, 0, 1);
 
-    // ۱) فلاش کوتاه و لرزان پشت صحنه (مثل نمونهٔ lightning_storm)
+    // ۱) فلاش کوتاه و لرزان پشت صحنه
     if (ev.flash !== false) {
       var flashP = clamp(1 - p / 0.38, 0, 1);
 
@@ -3862,11 +4047,21 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       }
     }
 
-    // ۲) سه‌بار کشیدن روی همان مسیر: هاله / بدنه / هستهٔ سفید
-    var alpha = Math.pow(1 - p, 0.72);
+    // ۲) خود صاعقه: از اسپرایت آماده بلیت می‌شود (سبک)، وگرنه مستقیم کشیده می‌شود
+    var alpha = Math.pow(1 - p, 1.25);
+    if (alpha <= 0.004) return true;
 
-    for (var i = 0; i < geom.bolts.length; i++) {
-      drawSegments(ctx, geom.bolts[i].segments, alpha);
+    var sprite = ensureLightningSprite(ev, W, H);
+    if (sprite) {
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      ctx.globalAlpha = clamp(alpha, 0, 1);
+      ctx.drawImage(sprite.canvas, sprite.x, sprite.y, sprite.w, sprite.h);
+      ctx.restore();
+    } else {
+      for (var i = 0; i < geom.bolts.length; i++) {
+        drawSegments(ctx, geom.bolts[i].segments, alpha);
+      }
     }
 
     return true;
@@ -5705,8 +5900,10 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         }
 
         function addLightningAtCurrentTime(tier) {
-            let cur = (audioFileObj && !audioElement.paused) ? audioElement.currentTime : simulatedTime;
-            let t = Math.round(cur * 100) / 100;
+            // اگر از گرید «زمان انتخابی» کرده باشی، رعد هم همان‌جا ثبت می‌شود
+            let t = (typeof getFxTargetTime === 'function')
+                ? getFxTargetTime()
+                : Math.round(((audioFileObj && !audioElement.paused) ? audioElement.currentTime : simulatedTime) * 100) / 100;
             manualLightningTimestamps.push({ t, tier: tier || 1 });
             renderDataGrid();
             drawFrame();
@@ -5888,7 +6085,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
             }
 
             if (allEvents.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" style="padding:2rem; color:var(--text-muted);">هیچ رویدادی در این فیلتر ثبت نشده است</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" style="padding:2rem; color:var(--text-muted);">هیچ رویدادی در این فیلتر ثبت نشده است</td></tr>`;
                 return;
             }
 
@@ -5958,8 +6155,9 @@ https://github.com/nodeca/pako/blob/main/LICENSE
                         </span>
                     </td>
                     <td>${contentHtml}</td>
-                    <td>
+                    <td data-row-start="${startVal}" data-row-type="${ev.type}" data-row-idx="${ev.origIdx}">
                         <div style="display:flex; align-items:center; gap:3px;">
+                            <button class="btn btn-sm" onclick="setSelectedTimelineTime('${startVal}')" title="این ثانیه را انتخاب کن؛ افکت‌ها همین‌جا ثبت می‌شوند" style="padding:1px 5px; min-height:24px; font-size:0.8rem; background:rgba(255,240,0,0.18); color:#FFF000;">⏱</button>
                             <button class="btn btn-sm" onclick="nudgeTimelineEvent('${ev.type}', ${ev.origIdx}, '${ev.type === 'lightning' ? 't' : 'start_time'}', -0.1)" style="padding:1px 5px; min-height:24px; font-size:0.8rem;">-</button>
                             <input type="number" step="0.05" value="${startVal}" onchange="updateTimelineEvent('${ev.type}', ${ev.origIdx}, '${ev.type === 'lightning' ? 't' : 'start_time'}', this.value)" style="width:75px; text-align:center; padding:2px;">
                             <button class="btn btn-sm" onclick="nudgeTimelineEvent('${ev.type}', ${ev.origIdx}, '${ev.type === 'lightning' ? 't' : 'start_time'}', 0.1)" style="padding:1px 5px; min-height:24px; font-size:0.8rem;">+</button>
@@ -5968,11 +6166,29 @@ https://github.com/nodeca/pako/blob/main/LICENSE
                     <td>${endInputHtml}</td>
                     <td style="color:var(--success); font-weight:bold; font-size:0.85rem;">${dt}</td>
                     <td>
+                        <div class="row-fx-box">
+                            <select title="افکتی که روی این خط/رخداد می‌خواهی">
+                                <option value="">افکت…</option>
+                                <option value="lightning_storm">⚡ صاعقه</option>
+                                <option value="rain_storm">🌧️ رگبار</option>
+                                <option value="fireworks">🎆 آتش‌بازی</option>
+                                <option value="shockwave">🌊 موج شوک</option>
+                                <option value="ember_rain">✨ جرقه</option>
+                                <option value="strobe_flash">💥 فلاش</option>
+                                <option value="brand">⚡ برند</option>
+                            </select>
+                            <button class="btn btn-success btn-sm" onclick="addRowEffect(this, '${startVal}', '${ev.type}', ${ev.origIdx})" title="ثبت این افکت در ثانیهٔ همین ردیف" style="padding:1px 6px; min-height:26px; font-size:0.8rem;">➕</button>
+                        </div>
+                    </td>
+                    <td>
                         <button class="btn btn-danger" onclick="deleteTimelineEvent('${ev.type}', ${ev.origIdx})" style="padding:0.2rem 0.5rem; min-height:26px; font-size:0.8rem;">🗑️</button>
                     </td>
                 `;
                 tbody.appendChild(tr);
             });
+
+            // اگر ثانیه‌ای انتخاب شده باشد، ردیفش را هم دوباره علامت بزن
+            if (typeof highlightSelectedTimeRows === 'function') { try { highlightSelectedTimeRows(); } catch (e) {} }
         }
 
         function highlightCurrentLineInGrid(idx) {
@@ -5992,6 +6208,9 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 
         // متغیر نگهداری آخرین Blob URL برای پاکسازی حافظه رم
         let lastCreatedVideoUrl = null;
+        // آخرین فایل ویدیویی ضبط‌شده (برای بستهٔ کامل پروژه: JSON + ویدیو + اسکریپت MP4)
+        let lastCreatedVideoBlob = null;
+        let lastCreatedVideoExt = 'webm';
         let isPaused = false;
 
         function togglePausePlayback() {
@@ -6022,9 +6241,66 @@ https://github.com/nodeca/pako/blob/main/LICENSE
             }
         }
 
+        /* ===== ⏱ مدت کلیپ =====
+           قاعده: طول کلیپ = طول خود آهنگ. اگر آهنگی بارگذاری نشده باشد، تا
+           آخرین رخداد تایم‌لاین (آخرین خط/افکت/برند) + ۲ ثانیه دنباله.
+           دیگر هیچ‌جا ۱۸۰ ثانیهٔ ثابت استفاده نمی‌شود. */
+        function getClipDuration() {
+            const aDur = (audioFileObj && audioElement && Number.isFinite(audioElement.duration)) ? audioElement.duration : 0;
+            if (aDur > 0.2) return aDur;
+
+            let end = 0;
+            try {
+                recordedScenario.forEach(r => {
+                    const st = Number.isFinite(r.start_time) ? r.start_time : 0;
+                    const en = Number.isFinite(r.end_time) ? r.end_time : st + 4.0;
+                    if (en > end) end = en;
+                    if (st > end) end = st;
+                });
+                if (window.LyraxFx) window.LyraxFx.getTimelineEvents().forEach(e => {
+                    const e2 = (e.t || 0) + (e.duration || 1.0);
+                    if (e2 > end) end = e2;
+                });
+                if (window.LyraxBrand) window.LyraxBrand.getTimelineEvents().forEach(e => {
+                    const e2 = (e.t || 0) + (e.duration || 2.6);
+                    if (e2 > end) end = e2;
+                });
+                manualLightningTimestamps.forEach(item => {
+                    const t = (typeof item === 'number') ? item : (item.t || 0);
+                    if (t + 1.0 > end) end = t + 1.0;
+                });
+                overlayImagesList.forEach(o => {
+                    const e2 = Number.isFinite(o.end_time) ? o.end_time : 0;
+                    if (e2 > end) end = e2;
+                });
+            } catch (e) { /* هیچ‌چیز */ }
+
+            return Math.max(10, end + 2.0);
+        }
+
+        function formatClock(sec) {
+            const t = Math.max(0, Math.round(Number(sec) || 0));
+            const m = Math.floor(t / 60);
+            const s2 = t % 60;
+            return m + ':' + (s2 < 10 ? '0' + s2 : s2);
+        }
+
+        // آیا اصلاً چیزی برای رندر وجود دارد؟ (لیریکس یا افکت یا برند یا تصویر)
+        function hasTimelineContent() {
+            if (recordedScenario.length > 0) return true;
+            if (window.LyraxFx && window.LyraxFx.getTimelineEvents().length > 0) return true;
+            if (window.LyraxBrand && window.LyraxBrand.getTimelineEvents().length > 0) return true;
+            if (manualLightningTimestamps.length > 0) return true;
+            if (overlayImagesList.length > 0) return true;
+            return false;
+        }
+
         // --- شروع پروژه با ضبط ویدیویی خودکار ---
         function startPlaybackSync() {
-            if (parsedLines.length === 0) { alert("❌ کادر لیریکس خالی است!"); return; }
+            if (parsedLines.length === 0 && !hasTimelineContent()) {
+                alert("❌ نه لیریکسی هست و نه افکتی! اول متن را بگذار یا از پنل «🎬 افکت‌های آماده» یک افکت ثبت کن.");
+                return;
+            }
 
             // آزادسازی رم مرورگر از ویدیوهای ضبط‌شده قبلی
             if (lastCreatedVideoUrl) {
@@ -6100,12 +6376,16 @@ https://github.com/nodeca/pako/blob/main/LICENSE
                     let ext = mime.includes('mp4') ? 'mp4' : 'webm';
                     let blob = new Blob(recordedVideoChunks, { type: mime || 'video/webm' });
                     lastCreatedVideoUrl = URL.createObjectURL(blob);
+                    lastCreatedVideoBlob = blob;
+                    lastCreatedVideoExt = ext;
 
                     let outVid = document.getElementById('outputVideo');
                     outVid.src = lastCreatedVideoUrl;
                     let pName = document.getElementById('projectName').value || "clip";
                     setupDownloadLink('downloadVideoLink', lastCreatedVideoUrl, `${pName}_recorded.${ext}`);
                     document.getElementById('recordedVideoContainer').style.display = 'flex';
+                    const dline1 = document.getElementById('clipDurationLine');
+                    if (dline1) dline1.textContent = 'مدت کلیپ: ' + formatClock(getClipDuration()) + ' • فرمت: ' + ext.toUpperCase();
                     showToast("🎬 ویدیوی کلیپ شما ضبط شد! روی دکمه سبز دانلود بزن 👇");
                 };
 
@@ -6119,8 +6399,11 @@ https://github.com/nodeca/pako/blob/main/LICENSE
             if (bgMediaObj.type === 'video' && bgMediaObj.elem) { bgMediaObj.elem.currentTime = 0; bgMediaObj.elem.play().catch(()=>{}); }
             if (audioFileObj && audioElement.src) { audioElement.currentTime = 0; audioElement.play().catch(()=>{}); }
 
-            const totalDur = (audioFileObj && audioElement.duration) ? audioElement.duration : 180.0;
+            const totalDur = getClipDuration();
             let lastUiUpdateTime = 0;
+            if (typeof showToast === 'function') {
+                showToast('⏱ مدت کلیپ: ' + formatClock(totalDur) + ' (تا آخر آهنگ)');
+            }
 
             function loop() {
                 if (!isPlaying || isPaused) return;
@@ -6130,7 +6413,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
                 if (now - lastUiUpdateTime > 80) {
                     let pct = Math.min(100, (cur / totalDur) * 100);
                     document.getElementById('progressBar').style.width = pct + '%';
-                    document.getElementById('progressText').innerText = `${Math.round(cur)}s / ${Math.round(totalDur)}s`;
+                    document.getElementById('progressText').innerText = `${formatClock(cur)} / ${formatClock(totalDur)}`;
                     lastUiUpdateTime = now;
                 }
 
@@ -6157,9 +6440,13 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 
         // --- رندر تمیز و میلی‌ثانیه‌ای کلیپ با کامپوزیت تمام لایه‌ها (Precision Render) ---
         function startCleanReRender() {
-            if (recordedScenario.length === 0) {
-                alert("❌ ابتدا لیریکس را در جدول زمان‌بندی کنید یا فایل را بارگذاری کنید!");
+            // دیگر به «لیریکس تایم‌دار» وابسته نیست: با افکت/برند/تصویر هم رندر کار می‌کند
+            if (!hasTimelineContent()) {
+                alert("❌ هیچ رخدادی برای رندر نیست! لیریکس را تایم‌کن یا از پنل «🎬 افکت‌های آماده» یک افکت ثبت کن.");
                 return;
+            }
+            if (parsedLines.length > 0 && recordedScenario.length === 0) {
+                showToast("ℹ️ لیریکس تایم‌دار نیست؛ کلیپ فقط با افکت‌ها و تصاویر رندر می‌شود.");
             }
 
             stopPlayback();
@@ -6227,12 +6514,16 @@ https://github.com/nodeca/pako/blob/main/LICENSE
                     let ext = mime.includes('mp4') ? 'mp4' : 'webm';
                     let blob = new Blob(recordedVideoChunks, { type: mime || 'video/webm' });
                     lastCreatedVideoUrl = URL.createObjectURL(blob);
+                    lastCreatedVideoBlob = blob;
+                    lastCreatedVideoExt = ext;
 
                     let outVid = document.getElementById('outputVideo');
                     outVid.src = lastCreatedVideoUrl;
                     let pName = document.getElementById('projectName').value || "clip";
                     setupDownloadLink('downloadVideoLink', lastCreatedVideoUrl, `${pName}_precision_synced.${ext}`);
                     document.getElementById('recordedVideoContainer').style.display = 'flex';
+                    const dline2 = document.getElementById('clipDurationLine');
+                    if (dline2) dline2.textContent = 'مدت کلیپ: ' + formatClock(getClipDuration()) + ' • فرمت: ' + ext.toUpperCase();
                     showToast("🏆 کلیپ تمیز و بی‌نقص با هماهنگی میلی‌ثانیه‌ای آماده دانلود شد!");
                 };
 
@@ -6246,8 +6537,11 @@ https://github.com/nodeca/pako/blob/main/LICENSE
             if (bgMediaObj.type === 'video' && bgMediaObj.elem) { bgMediaObj.elem.currentTime = 0; bgMediaObj.elem.play().catch(()=>{}); }
             if (audioFileObj && audioElement.src) { audioElement.currentTime = 0; audioElement.play().catch(()=>{}); }
 
-            const totalDur = (audioFileObj && audioElement.duration) ? audioElement.duration : 180.0;
+            const totalDur = getClipDuration();
             let lastUiUpdateTime = 0;
+            if (typeof showToast === 'function') {
+                showToast('🎬 رندر تا آخر آهنگ: ' + formatClock(totalDur));
+            }
 
             function renderLoop() {
                 if (!isPlaying) return;
@@ -6257,7 +6551,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
                 if (now - lastUiUpdateTime > 80) {
                     let pct = Math.min(100, (cur / totalDur) * 100);
                     document.getElementById('progressBar').style.width = pct + '%';
-                    document.getElementById('progressText').innerText = `${Math.round(cur)}s / ${Math.round(totalDur)}s (رندر تمیز)`;
+                    document.getElementById('progressText').innerText = `${formatClock(cur)} / ${formatClock(totalDur)} (رندر تمیز)`;
                     lastUiUpdateTime = now;
                 }
 
@@ -6275,7 +6569,9 @@ https://github.com/nodeca/pako/blob/main/LICENSE
                 if (window.LyraxFx) window.LyraxFx.updateAndReplay(cur, dt);
                 if (window.LyraxBrand) window.LyraxBrand.updateAndReplay(cur, dt);
                 drawFrame();
-                if (cur < totalDur && (!audioElement.ended)) animId = requestAnimationFrame(renderLoop);
+                // پایان آهنگ (یا رسیدن به مدت کلیپ) ⇒ خودکار بسته می‌شود و همان لحظه فایل آماده است
+                const songEnded = (audioFileObj && audioElement && audioElement.ended);
+                if (cur < totalDur && !songEnded) animId = requestAnimationFrame(renderLoop);
                 else stopPlayback();
             }
             renderLoop();
@@ -6417,11 +6713,11 @@ https://github.com/nodeca/pako/blob/main/LICENSE
             }
             const toggle = document.getElementById('lightningEnabledToggle');
             if (toggle && toggle.checked !== !!enabled) toggle.checked = !!enabled;
-            const button = document.querySelector('button[onclick="fxTriggerFromUI(\'lightning_storm\')"]');
+            // چیپ‌ها قفل نمی‌شوند؛ وضعیت «خاموش» فقط در سوییچ زیرشان دیده می‌شود
+            const button = document.getElementById('btnQuickLightning');
             if (button) {
-                button.disabled = !enabled;
-                button.style.opacity = enabled ? '1' : '0.45';
-                button.style.cursor = enabled ? 'pointer' : 'not-allowed';
+                button.disabled = false;
+                button.style.cursor = 'pointer';
             }
             if (typeof showToast === 'function') showToast(enabled ? '⚡ صاعقه فعال است؛ با کلیک روی دکمه یا کلید L در زمان دلخواه ثبتش کن.' : '⏸️ صاعقه غیرفعال شد.');
             if (typeof syncQuickEffectButtons === 'function') syncQuickEffectButtons();
@@ -6429,14 +6725,67 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         }
 
         function fxTriggerFromUI(type) {
+            // ⚡ برند از ماژول جداگانه می‌آید ولی از همان «زمان انتخابی» پیروی می‌کند
+            if (type === 'brand') {
+                if (!window.LyraxBrand) { showToast("⚠️ ماژول برند بارگذاری نشده است."); return; }
+                const tb = getFxTargetTime();
+                const evb = window.LyraxBrand.trigger('strike_signature', tb);
+                if (!evb) return;
+                subtitleCacheSig = null;
+                renderDataGrid(); drawFrame(); updateBrandCountBadge();
+                showToast("⚡ سناریوی برند ثبت شد در ثانیهٔ " + tb.toFixed(2) + "s");
+                return;
+            }
+
             if (!window.LyraxFx) { showToast("⚠️ ماژول افکت‌ها بارگذاری نشده است."); return; }
-            let cur = (audioFileObj && !audioElement.paused) ? audioElement.currentTime : simulatedTime;
-            let t = Math.round(cur * 100) / 100;
+            ensureEffectEnabled(type);
+            const t = getFxTargetTime();
             let ev = window.LyraxFx.trigger(type, t);
             if (!ev) return;
             subtitleCacheSig = null;
             renderDataGrid(); drawFrame(); updateFxCountBadge();
-            showToast(ev.badgeText + " ثبت شد در لحظه‌ی " + t.toFixed(2) + "s");
+            showToast((ev.badgeText || 'افکت') + " ثبت شد در ثانیهٔ " + t.toFixed(2) + "s");
+        }
+
+        // 📌 ثبت افکتِ انتخابیِ هر ردیف گرید در همان ثانیهٔ آن ردیف
+        function addRowEffect(btn, rowStart, rowType, rowIdx) {
+            const box = btn ? btn.closest('.row-fx-box') : null;
+            const sel = box ? box.querySelector('select') : null;
+            const type = sel ? sel.value : '';
+            if (!type) { showToast('⚠️ اول یک افکت از منوی همان ردیف انتخاب کن'); return; }
+            const t = Math.round((parseFloat(rowStart) || 0) * 100) / 100;
+
+            if (type === 'brand') {
+                if (!window.LyraxBrand) return;
+                window.LyraxBrand.trigger('strike_signature', t);
+                updateBrandCountBadge();
+            } else {
+                if (!window.LyraxFx) return;
+                ensureEffectEnabled(type);
+                const ev = window.LyraxFx.trigger(type, t);
+                if (!ev) { showToast('⚠️ این افکت ثبت نشد'); return; }
+                updateFxCountBadge();
+            }
+            subtitleCacheSig = null;
+            renderDataGrid(); drawFrame();
+            showToast('🎬 افکت روی ردیف ' + (rowIdx + 1) + ' در ثانیهٔ ' + t.toFixed(2) + 's ثبت شد');
+        }
+
+        // اگر افکت صاعقه خاموش باشد، تپ کاربر خودش روشنش می‌کند تا هیچ تپی هدر نرود
+        function ensureEffectEnabled(type) {
+            if (type !== 'lightning_storm') return;
+            if (window.LyraxStorm && window.LyraxStorm.isLightningEnabled && !window.LyraxStorm.isLightningEnabled()) {
+                setLightningEnabled(true);
+            }
+        }
+
+        // روشن/خاموش کردن صاعقه‌های خودکار (همان تیک تب ۳) از تب اصلی
+        function toggleLightningQuick() {
+            const lt = document.getElementById('lightningEnabledToggle');
+            const next = !(lt && lt.checked);
+            if (lt) lt.checked = next;
+            setLightningEnabled(next);
+            syncQuickEffectButtons();
         }
 
         function fxClearAll() {
@@ -6458,25 +6807,95 @@ https://github.com/nodeca/pako/blob/main/LICENSE
             const lt = document.getElementById('lightningEnabledToggle');
             const lightningOn = lt ? !!lt.checked : true;
 
+            // چیپ صاعقه هرگز «قفل» نمی‌شود؛ اگر صاعقه خاموش باشد با اولین تپ خودش روشن می‌شود
             const lbtn = document.getElementById('btnQuickLightning');
             if (lbtn) {
-                lbtn.disabled = !lightningOn;
-                lbtn.style.opacity = lightningOn ? '1' : '0.45';
-                lbtn.style.cursor = lightningOn ? 'pointer' : 'not-allowed';
-                lbtn.innerText = lightningOn ? '⚡ صاعقه روی کلیپ' : '⏸️ صاعقه غیرفعال است';
+                lbtn.disabled = false;
+                lbtn.style.opacity = '1';
+                lbtn.style.cursor = 'pointer';
+                lbtn.title = lightningOn ? 'ثبت صاعقه در زمان فعلی/انتخابی' : 'صاعقه خاموش است؛ با تپ روشن و ثبت می‌شود';
             }
 
-            const morning = document.getElementById('rainOverlayEnabledToggle');
-            const rainOn = morning ? !!morning.checked : false;
+            const autoBtn = document.getElementById('btnQuickLightningAuto');
+            if (autoBtn) {
+                autoBtn.innerText = lightningOn ? '⚡ صاعقه‌های خودکار: روشن' : '⚡ صاعقه‌های خودکار: خاموش';
+                autoBtn.classList.toggle('on', lightningOn);
+            }
+
+            const rainToggle = document.getElementById('rainOverlayEnabledToggle');
+            const rainOn = rainToggle ? !!rainToggle.checked : false;
             const rbtn = document.getElementById('btnQuickRain');
             if (rbtn) {
-                rbtn.innerText = rainOn ? '🌧️ باران: روشن' : '🌧️ باران: خاموش';
-                rbtn.style.boxShadow = rainOn ? '0 0 0 2px rgba(125,211,252,0.65) inset' : 'none';
+                rbtn.innerText = rainOn ? '🌧️ باران پیوسته: روشن' : '🌧️ باران پیوسته: خاموش';
+                rbtn.classList.toggle('on', rainOn);
             }
 
-            // «یک رگبار ۸ ثانیه‌ای» (رخداد rain_storm) مستقل از تیک باران پیوسته کار می‌کند،
-            // پس دکمه‌اش همیشه فعال می‌ماند؛ فقط تیک باران، بارشِ پیوسته را کنترل می‌کند.
+            // «رگبار» (رخداد rain_storm) مستقل از تیک باران پیوسته کار می‌کند، پس چیپش همیشه فعال است.
+            updateFxTimeChip();
         }
+
+        /* ===== ⏱ «زمان انتخابی» گرید =====
+           با زدن دکمهٔ ⏱ روی هر ردیف جدول، آن ثانیه انتخاب می‌شود و از آن به بعد
+           هر افکتی که بزنی (صاعقه، آتش‌بازی، برند، رعد...) دقیقاً در همان ثانیه ثبت می‌شود،
+           نه در لحظهٔ پخش. با یک تپ دوباره روی چیپ، انتخاب لغو می‌شود. */
+        let selectedTimelineTime = null;
+
+        function setSelectedTimelineTime(t) {
+            let v = parseFloat(t);
+            if (!Number.isFinite(v) || v < 0) return;
+            selectedTimelineTime = Math.round(v * 100) / 100;
+            updateFxTimeChip();
+            highlightSelectedTimeRows();
+            if (typeof showToast === 'function') {
+                showToast('⏱ زمان انتخابی: ' + selectedTimelineTime.toFixed(2) + 's — افکت‌ها همین‌جا ثبت می‌شوند');
+            }
+        }
+
+        function clearSelectedTimelineTime() {
+            if (selectedTimelineTime === null) return;
+            selectedTimelineTime = null;
+            updateFxTimeChip();
+            highlightSelectedTimeRows();
+            if (typeof showToast === 'function') showToast('⏱ انتخاب زمان لغو شد؛ افکت‌ها در لحظهٔ پخش ثبت می‌شوند');
+        }
+
+        // زمان هدف برای ثبت هر افکت: «زمان انتخابی» یا لحظهٔ جاری پخش
+        function getFxTargetTime() {
+            if (selectedTimelineTime !== null && Number.isFinite(selectedTimelineTime)) {
+                return Math.round(selectedTimelineTime * 100) / 100;
+            }
+            const cur = (typeof audioFileObj !== 'undefined' && audioFileObj && typeof audioElement !== 'undefined' && !audioElement.paused)
+                ? audioElement.currentTime
+                : simulatedTime;
+            const v = Number.isFinite(cur) ? cur : 0;
+            return Math.round(Math.max(0, v) * 100) / 100;
+        }
+
+        function updateFxTimeChip() {
+            const chip = document.getElementById('fxTimeChip');
+            if (!chip) return;
+            if (selectedTimelineTime !== null) {
+                chip.textContent = '⏱ ثانیهٔ انتخابی: ' + selectedTimelineTime.toFixed(2) + 's ✖';
+                chip.classList.add('selected');
+            } else {
+                chip.textContent = '⏱ همین لحظهٔ پخش';
+                chip.classList.remove('selected');
+            }
+        }
+
+        function highlightSelectedTimeRows() {
+            const rows = document.querySelectorAll('#dataGridBody tr');
+            rows.forEach(tr => {
+                const cell = tr.querySelector('[data-row-start]');
+                tr.classList.remove('time-selected');
+                if (cell && selectedTimelineTime !== null) {
+                    const v = parseFloat(cell.getAttribute('data-row-start'));
+                    if (Number.isFinite(v) && Math.abs(v - selectedTimelineTime) < 0.005) tr.classList.add('time-selected');
+                }
+            });
+        }
+
+        try { updateFxTimeChip(); } catch (e) {}
 
         // در همان لحظهٔ بارگذاری هم برچسب/وضعیت دکمه‌ها درست باشد
         try { syncQuickEffectButtons(); } catch (e) {}
@@ -6910,6 +7329,12 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         // --- صدور سناریو نهایی به نام پروژه (حاوی لیریکس، متادیتا و تصاویر اوورلی) ---
         function exportMasterProjectJSON() {
             let pName = document.getElementById('projectName').value || "my_clip";
+            downloadJSONBlob(buildMasterProjectObject(), `${pName}.json`);
+        }
+
+        // همین شیء هم داخل «بستهٔ کامل پروژه» ذخیره می‌شود (JSON + ویدیو + اسکریپت MP4)
+        function buildMasterProjectObject() {
+            let pName = document.getElementById('projectName').value || "my_clip";
             let baseF = bgMediaObj.file ? bgMediaObj.file.name : "background.mp4";
 
             let masterExport = {
@@ -6936,6 +7361,10 @@ https://github.com/nodeca/pako/blob/main/LICENSE
                                                  : (window.LyraxWeather ? window.LyraxWeather.getSettings().rain
                                                                         : { enabled: rainOverlayEnabled }),
                 weather_lightning: window.LyraxWeather ? window.LyraxWeather.getSettings().lightning : {},
+                // پیش‌فرض‌های موتور صاعقه (ضخامت/شاخه/شدت/رنگ) — فقط تنظیمات ذخیره می‌شود،
+                // جزئیات شکل صاعقه در زمان رندر ساخته می‌شود
+                storm_lightning_defaults: (window.LyraxStorm && window.LyraxStorm.getLightningDefaults)
+                    ? window.LyraxStorm.getLightningDefaults() : {},
                 // افکت‌های زمان‌بندی‌شده، شامل rain_storm و lightning_storm
                 layer_fx: window.LyraxFx ? window.LyraxFx.getTimelineEvents() : [],
                 // برند / امضا / لوگوی رعدی (تنظیمات + سناریوهای ثبت‌شده)
@@ -6965,10 +7394,85 @@ https://github.com/nodeca/pako/blob/main/LICENSE
                         positioning: { type: "relative_percentage", x1: 0, y1: 78, x2: 100, y2: 93 }
                     }))
                 ],
-                lines_sync_data: recordedScenario
+                lines_sync_data: recordedScenario,
+                // مدت واقعی کلیپ (= طول آهنگ) و افکت‌های انتخابیِ گرید
+                clip_duration: Math.round(getClipDuration() * 1000) / 1000
             };
 
-            downloadJSONBlob(masterExport, `${pName}.json`);
+            return masterExport;
+        }
+
+        /* ===== 📦 بستهٔ کامل پروژه به نام کلیپ =====
+           یک فایل ZIP با اسم پروژه که شامل:
+             • <نام>_project.json  ← تایم همهٔ خطوط + همهٔ افکت‌ها و تنظیمات (همان چیزی که رندر سروری می‌خواند)
+             • <نام>_clip.webm|mp4 ← خود ویدیوی ضبط‌شده
+             • make_mp4.sh         ← اسکریپت تبدیل به MP4 استاندارد در Termux
+             • README.txt          ← راهنمای کوتاه */
+        const MAKE_MP4_SH = [
+            '#!/data/data/com.termux/files/usr/bin/bash',
+            '# تبدیل کلیپ ضبط‌شدهٔ مرورگر به MP4 استاندارد (H.264 + AAC)',
+            '# اجرا:  bash make_mp4.sh',
+            'set -e',
+            'cd "$(dirname "$0")"',
+            'if ! command -v ffmpeg >/dev/null 2>&1; then',
+            '  echo "ffmpeg نصب نیست. اول این را بزن:  pkg install -y ffmpeg"',
+            '  exit 1',
+            'fi',
+            'CLIP=$(ls *.webm *.mp4 2>/dev/null | grep -v "_mp4\\.mp4$" | head -n1)',
+            'if [ -z "$CLIP" ]; then echo "هیچ فایل webm/mp4 در این پوشه نیست"; exit 1; fi',
+            'OUT=$(basename "$CLIP" | sed "s/\\.[^.]*$//")_mp4.mp4',
+            'echo "ورودی: $CLIP"',
+            'echo "خروجی: $OUT"',
+            'ffmpeg -y -i "$CLIP" -c:v libx264 -preset veryfast -crf 20 -pix_fmt yuv420p \\',
+            '       -c:a aac -b:a 192k -movflags +faststart "$OUT"',
+            'echo "✅ آماده شد: $OUT"',
+            ''
+        ].join('\n');
+
+        async function downloadClipBundle() {
+            if (typeof JSZip === 'undefined') {
+                showToast("⚠️ JSZip بارگذاری نشده؛ فقط JSON را دانلود می‌کنم.");
+                exportMasterProjectJSON();
+                return;
+            }
+
+            let pName = (document.getElementById('projectName').value || 'clip').trim();
+            pName = pName.replace(/[^\w\u0600-\u06FF\-\s]+/g, '_').replace(/\s+/g, '_') || 'clip';
+
+            const zip = new JSZip();
+            zip.file(`${pName}_project.json`, JSON.stringify(buildMasterProjectObject(), null, 2));
+            zip.file('make_mp4.sh', MAKE_MP4_SH);
+
+            let hasVideo = false;
+            if (lastCreatedVideoBlob) {
+                zip.file(`${pName}_clip.${lastCreatedVideoExt}`, lastCreatedVideoBlob);
+                hasVideo = true;
+            }
+
+            zip.file('README.txt', [
+                '📦 بستهٔ پروژهٔ «' + pName + '»',
+                '',
+                'محتویات:',
+                '1) ' + pName + '_project.json → تایم همهٔ خطوط، همهٔ افکت‌ها (نوع + ثانیه + پارامترها)،',
+                '   باران/صاعقه، اوورلی‌ها و سناریوهای برند. با همین فایل می‌توانی بعداً دوباره بازخوانی کنی',
+                '   یا با رندر سروری (backend/) کلیپ نهایی را خروجی بگیری.',
+                '2) ' + (hasVideo ? pName + '_clip.' + lastCreatedVideoExt + ' → ویدیوی ضبط‌شده در همین مرورگر.' : 'هیچ ویدیویی ضبط نشده بود (فقط پروژه).'),
+                '3) make_mp4.sh → در Termux اجرا کن تا فایل به MP4 استاندارد تبدیل شود:',
+                '   pkg install -y ffmpeg && bash make_mp4.sh',
+                '',
+                'نکته: جزئیات افکت‌ها (درخشش، شاخه‌ها، ضخامت) ذخیره نمی‌شود؛ فقط نوع و ثانیه ثبت می‌شود و',
+                'در زمان رندر کامل اعمال می‌شود.'
+            ].join('\n'));
+
+            showToast("📦 در حال ساخت بستهٔ " + pName + " …");
+            try {
+                const blob = await zip.generateAsync({ type: 'blob' });
+                attemptDownload(blob, `${pName}_bundle.zip`, "📦 بستهٔ کامل پروژه آماده شد (JSON + ویدیو + اسکریپت MP4)");
+            } catch (e) {
+                console.log('Bundle error:', e);
+                showToast("⚠️ ساخت بسته کامل نشد؛ فقط JSON را ذخیره می‌کنم.");
+                exportMasterProjectJSON();
+            }
         }
 
         function exportScenarioFormat1() { exportMasterProjectJSON(); }

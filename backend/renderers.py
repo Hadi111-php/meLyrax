@@ -102,8 +102,8 @@ WEATHER_DEFAULTS = {
                   "branches": 3, "thickness": 1.0},
 }
 
-# ضریب‌های سه‌پاس رسم صاعقه در lyrax-storm.js: (ضریب ضخامت، ضریب آلفا)
-STORM_BOLT_PASSES = ((3.4, 0.16), (1.7, 0.42), (1.0, 1.00))
+# سه‌پاس ASS برای حس «هاله/بدنه/مغز» (چون ASS ترکیب additive ندارد، هاله کم‌رنگ است)
+STORM_BOLT_PASSES = ((3.0, 0.22), (1.6, 0.58), (0.85, 1.00))
 STORM_FLASH_SPAN = 0.38          # طول پنجره‌ی فلاش پشت صحنه (نسبت به کل مدت رخداد)
 STORM_FLASH_ALPHA = 0.15         # میانگین flicker در ماژول: 0.1 + 0.1 × flicker
 
@@ -301,18 +301,18 @@ def _storm_resolve_corner(mode, seed):
 
 
 def _storm_corner_point(corner, res_w, res_h):
-    mx, ty = res_w * 0.05, res_h * 0.015
+    """شروع دقیقاً از گوشهٔ بوم (مثل صاعقه.html)."""
     if corner == "tl":
-        return mx, ty
+        return 0.0, 0.0
     if corner == "tr":
-        return res_w - mx, ty
+        return res_w, 0.0
     if corner == "bl":
-        return mx, res_h * 0.97
+        return 0.0, res_h
     if corner == "br":
-        return res_w - mx, res_h * 0.97
+        return res_w, res_h
     if corner == "center":
-        return res_w * 0.5, ty
-    return res_w - mx, ty
+        return res_w * 0.5, 0.0
+    return res_w, 0.0
 
 
 def _storm_is_top(corner):
@@ -320,27 +320,34 @@ def _storm_is_top(corner):
 
 
 def _storm_bolt_paths(x1, y1, x2, y2, displace, branches, width, color, rnd, trunk, branch_out, depth=0):
-    """پورت دقیق buildBoltSegments در lyrax-storm.js (همان ترتیب rnd() و همان احتمالات)."""
-    if displace < 2.5 or branches < 0 or depth > 20:
+    """پورت دقیق buildBoltSegments در lyrax-storm.js (و صاعقه.html).
+
+    • تنه تا وقتی displace < 2.5 یا عمق > 16 ادامه می‌دهد (پس صاعقه «خط» نمی‌شود)
+    • شمارندهٔ branches فقط درِ شاخه‌هاست، نه عمق تنه
+    • شاخه در جهت حرکتِ همان قطعه ± ۰٫۹۵ رادیان بیرون می‌زند
+    """
+    if displace < 2.5 or depth > 16:
         trunk.append((x2, y2))
         return
 
-    mx = (x1 + x2) / 2.0 + (rnd() - 0.5) * displace
-    my = (y1 + y2) / 2.0 + (rnd() - 0.5) * displace
+    nx = (x1 + x2) / 2.0 + (rnd() - 0.5) * displace
+    ny = (y1 + y2) / 2.0 + (rnd() - 0.5) * displace
 
-    _storm_bolt_paths(x1, y1, mx, my, displace / 2.0, branches - 1, width * 0.92, color,
+    _storm_bolt_paths(x1, y1, nx, ny, displace / 2.0, branches - 1, width * 0.92, color,
                       rnd, trunk, branch_out, depth + 1)
-    _storm_bolt_paths(mx, my, x2, y2, displace / 2.0, branches - 1, width * 0.92, color,
+    _storm_bolt_paths(nx, ny, x2, y2, displace / 2.0, branches - 1, width * 0.92, color,
                       rnd, trunk, branch_out, depth + 1)
 
-    if branches > 0 and rnd() < 0.5:
-        angle = rnd() * math.pi * 2.0
-        blen = math.hypot(x2 - x1, y2 - y1) * 0.38
-        bx = mx + math.cos(angle) * blen
-        by = my + math.sin(angle) * blen
+    if branches > 0 and rnd() < 0.38:
+        ddy = (ny - y1) if (ny - y1) != 0 else 1
+        ddx = (nx - x1) if (nx - x1) != 0 else 1
+        angle = math.atan2(ddy, ddx) + (rnd() - 0.5) * 1.9
+        blen = math.hypot(x2 - x1, y2 - y1) * (0.25 + rnd() * 0.42)
+        bx = nx + math.cos(angle) * blen
+        by = ny + math.sin(angle) * blen
         branch_color = "#a8c0ff" if str(color).lower() in ("#ffffff", "#fff") else "#ffffff"
-        pts = [(mx, my)]
-        _storm_bolt_paths(mx, my, bx, by, displace / 2.5, branches - 2, width * 0.55,
+        pts = [(nx, ny)]
+        _storm_bolt_paths(nx, ny, bx, by, displace * 0.7, branches - 2, width * 0.6,
                           branch_color, rnd, pts, [], depth + 1)
         branch_out.append({"points": pts, "color": branch_color})
 
@@ -350,34 +357,33 @@ def _storm_bolt_geometry(seed, res_w, res_h, cfg):
     seed = (int(seed) & 0xFFFFFFFF) or 1
     rnd = _Mulberry32(seed)
 
-    corner_base = _storm_resolve_corner(cfg.get("start"), seed)
-    branches = int(_clamp(cfg.get("branches") if cfg.get("branches") is not None else 3, 0, 8))
+    corner = _storm_resolve_corner(cfg.get("start"), seed)
+    branches = int(_clamp(cfg.get("branches") if cfg.get("branches") is not None else 4, 0, 8))
     thickness_mul = _clamp(cfg.get("thickness") or 1.0, 0.2, 4.0)
     intensity = _clamp((cfg.get("intensity") if cfg.get("intensity") is not None else 80) / 100.0, 0.0, 1.0)
     inten_mul = 0.70 + 0.55 * intensity
-    scale = _clamp(max(res_w, res_h) / 700.0, 0.8, 1.8)
+    scale = _clamp(max(res_w, res_h) / 700.0, 0.8, 3.0)
     hue = str(cfg.get("color") or "#FFF700")
 
-    corner = corner_base
     if corner == "random":
         arr = ["tl", "tr", "bl", "br"]
         corner = arr[int(rnd() * 4) % 4]
 
     sx, sy = _storm_corner_point(corner, res_w, res_h)
 
-    ex = res_w * (0.1 + rnd() * 0.8)
-    ey = res_h * (0.5 + rnd() * 0.46) if _storm_is_top(corner) else res_h * (0.04 + rnd() * 0.46)
+    ex = res_w * (0.12 + rnd() * 0.76)
+    ey = res_h * (0.54 + rnd() * 0.43) if _storm_is_top(corner) else res_h * (0.03 + rnd() * 0.43)
 
-    displace = min(res_w, res_h) * (0.22 + rnd() * 0.14)
-    width = (1.1 + rnd() * 1.7) * scale * thickness_mul * inten_mul
-    color = "#a8c0ff" if rnd() < 0.25 else hue
+    base_displace = min(res_w, res_h) * 0.26 + 26
+    width = (1.2 + rnd() * 1.6) * scale * thickness_mul * inten_mul
+    color = "#a8c0ff" if rnd() > 0.62 else hue
 
     trunk = [(sx, sy)]
     branch_list = []
-    _storm_bolt_paths(sx, sy, ex, ey, displace, branches, width, color, rnd, trunk, branch_list)
+    _storm_bolt_paths(sx, sy, ex, ey, base_displace, branches, width, color, rnd, trunk, branch_list)
 
     return {"trunk": trunk, "branches": branch_list, "color": color,
-            "width": width, "inten_mul": inten_mul}
+            "width": width, "inten_mul": inten_mul, "scale": scale}
 
 
 def detect_beat_times(audio_file_path, sensitivity=1.35, min_gap_sec=0.22, sample_rate=22050):

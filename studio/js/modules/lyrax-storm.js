@@ -335,16 +335,15 @@
     return null;
   }
 
+  // شروع دقیقاً از گوشهٔ بوم (مثل صاعقه.html) — نه با حاشیه
   function cornerPoint(corner, W, H) {
-    var mx = W * 0.05;
-    var ty = H * 0.015;
     switch (corner) {
-      case "tl": return { x: mx, y: ty };
-      case "tr": return { x: W - mx, y: ty };
-      case "bl": return { x: mx, y: H * 0.97 };
-      case "br": return { x: W - mx, y: H * 0.97 };
-      case "center": return { x: W * 0.5, y: ty };
-      default: return { x: W - mx, y: ty };
+      case "tl": return { x: 0, y: 0 };
+      case "tr": return { x: W, y: 0 };
+      case "bl": return { x: 0, y: H };
+      case "br": return { x: W, y: H };
+      case "center": return { x: W * 0.5, y: 0 };
+      default: return { x: W, y: 0 };
     }
   }
 
@@ -369,33 +368,40 @@
     return corner;
   }
 
-  // ساخت مسیر صاعقه: recursive midpoint displacement + انشعاب (همان نمونهٔ lightning_storm)
+  // ساخت مسیر صاعقه — دقیقاً مثل صاعقه.html:
+  //   • تنه تا وقتی displace < 2.5 یا عمق > 16 ادامه می‌دهد (پس صاعقه «خط» نمی‌شود)
+  //   • شمارندهٔ branches فقط درِ شاخه‌هاست، نه عمق تنه
+  //   • شاخه در جهت حرکتِ همان قطعه ± ۰٫۹۵ رادیان بیرون می‌زند
   function buildBoltSegments(x1, y1, x2, y2, displace, branches, width, color, rnd, out, depth) {
     depth = depth || 0;
 
-    if (displace < 2.5 || branches < 0 || depth > 20) {
+    if (displace < 2.5 || depth > 16) {
       out.push({
         x1: x1, y1: y1, x2: x2, y2: y2,
-        width: Math.max(0.1, width),
+        width: Math.max(0.35, width),
         color: color || "#ffffff"
       });
       return;
     }
 
-    var midX = (x1 + x2) / 2 + (rnd() - 0.5) * displace;
-    var midY = (y1 + y2) / 2 + (rnd() - 0.5) * displace;
+    var midX = (x1 + x2) / 2;
+    var midY = (y1 + y2) / 2;
+    var nx = midX + (rnd() - 0.5) * displace;
+    var ny = midY + (rnd() - 0.5) * displace;
 
-    buildBoltSegments(x1, y1, midX, midY, displace / 2, branches - 1, width * 0.92, color, rnd, out, depth + 1);
-    buildBoltSegments(midX, midY, x2, y2, displace / 2, branches - 1, width * 0.92, color, rnd, out, depth + 1);
+    buildBoltSegments(x1, y1, nx, ny, displace / 2, branches - 1, width * 0.92, color, rnd, out, depth + 1);
+    buildBoltSegments(nx, ny, x2, y2, displace / 2, branches - 1, width * 0.92, color, rnd, out, depth + 1);
 
-    if (branches > 0 && rnd() < 0.5) {
-      var angle = rnd() * Math.PI * 2;
-      var branchLen = Math.hypot(x2 - x1, y2 - y1) * 0.38;
-      var bx = midX + Math.cos(angle) * branchLen;
-      var by = midY + Math.sin(angle) * branchLen;
+    if (branches > 0 && rnd() < 0.38) {
+      var ddy = (ny - y1) || 1;
+      var ddx = (nx - x1) || 1;
+      var angle = Math.atan2(ddy, ddx) + (rnd() - 0.5) * 1.9;
+      var branchLen = Math.hypot(x2 - x1, y2 - y1) * (0.25 + rnd() * 0.42);
+      var bx = nx + Math.cos(angle) * branchLen;
+      var by = ny + Math.sin(angle) * branchLen;
       var branchColor = (color === "#ffffff" || color === "#fff") ? "#a8c0ff" : "#ffffff";
 
-      buildBoltSegments(midX, midY, bx, by, displace / 2.5, branches - 2, width * 0.55, branchColor, rnd, out, depth + 1);
+      buildBoltSegments(nx, ny, bx, by, displace * 0.7, branches - 2, width * 0.6, branchColor, rnd, out, depth + 1);
     }
   }
 
@@ -463,11 +469,14 @@
     var rnd = mulberry32(ev.seed || 1);
     var bolts = [];
     var baseCorner = ev.corner || "random";
-    var scale = clamp(Math.max(W, H) / 700, 0.8, 1.8);
+    // مقیاس ضخامت/هاله نسبت به اندازهٔ بوم (نمونهٔ صاعقه.html در ۳۸۰×۷۰۰ کشیده شده بود)
+    var scale = clamp(Math.max(W, H) / 700, 0.8, 3.0);
     var intenMul = 0.70 + 0.55 * clamp((ev.intensity === undefined ? 80 : ev.intensity) / 100, 0, 1);
     var thicknessMul = clamp(ev.thickness === undefined ? 1 : ev.thickness, 0.2, 4);
+    var boltCount = clamp(ev.boltCount === undefined ? 1 : ev.boltCount, 1, 8);
+    var branches = clamp(ev.branches === undefined ? 4 : ev.branches, 0, 8);
 
-    for (var i = 0; i < ev.boltCount; i++) {
+    for (var i = 0; i < boltCount; i++) {
       var corner = baseCorner;
 
       if (corner === "random") {
@@ -484,59 +493,139 @@
         start.y = clamp(start.y, 0, H);
       }
 
-      var endX = W * (0.1 + rnd() * 0.8);
+      // مقصد: مثل randomTarget در نمونه — همیشه داخل کادر
+      var endX = W * (0.12 + rnd() * 0.76);
       var endY = isTopCorner(corner)
-        ? H * (0.5 + rnd() * 0.46)
-        : H * (0.04 + rnd() * 0.46);
+        ? H * (0.54 + rnd() * 0.43)
+        : H * (0.03 + rnd() * 0.43);
 
-      var baseDisplace = Math.min(W, H) * (0.22 + rnd() * 0.14);
-      var width = (1.1 + rnd() * 1.7) * scale * thicknessMul * intenMul;
-      var color = rnd() < 0.25 ? "#a8c0ff" : (ev.hue || "#ffffff");
+      var baseDisplace = Math.min(W, H) * 0.26 + 26;
+      var width = (1.2 + rnd() * 1.6) * scale * thicknessMul * intenMul;
+      var color = rnd() > 0.62 ? "#a8c0ff" : (ev.hue || "#ffffff");
 
       var segments = [];
-      buildBoltSegments(start.x, start.y, endX, endY, baseDisplace, ev.branches, width, color, rnd, segments, 0);
+      buildBoltSegments(start.x, start.y, endX, endY, baseDisplace, branches, width, color, rnd, segments, 0);
 
       bolts.push({ segments: segments, start: start, endX: endX, endY: endY, color: color });
     }
 
-    var geom = { W: W, H: H, bolts: bolts };
+    var geom = { W: W, H: H, scale: scale, bolts: bolts };
     ev._geom = geom;
     ev._geomKey = key;
     return geom;
   }
 
-  function drawSegments(ctx, segments, alpha) {
-    if (!segments || !segments.length || alpha <= 0.003) return;
+  // سه‌پاس ضربه‌قلم روی یک مسیر (هاله / بدنه / مغز) — مثل حلقهٔ سه‌بارهٔ نمونه
+  var BOLT_PASSES = [0.55, 1.10, 1.65];
 
-    var passes = [
-      { width: 3.4, alpha: 0.16, blur: 26 },
-      { width: 1.7, alpha: 0.42, blur: 12 },
-      { width: 1.0, alpha: 1.00, blur: 4 }
-    ];
-
-    ctx.save();
+  function paintSegments(ctx, segments, scale, alpha) {
+    if (!segments || !segments.length) return;
     ctx.globalCompositeOperation = "lighter";
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
 
-    for (var p = 0; p < passes.length; p++) {
-      var pass = passes[p];
-      ctx.globalAlpha = clamp(alpha * pass.alpha, 0, 1);
-
+    for (var p = 0; p < BOLT_PASSES.length; p++) {
+      ctx.globalAlpha = alpha;
       for (var i = 0; i < segments.length; i++) {
         var s = segments[i];
-
+        var w = Math.max(0.35, s.width * BOLT_PASSES[p]);
         ctx.beginPath();
         ctx.moveTo(s.x1, s.y1);
         ctx.lineTo(s.x2, s.y2);
-        ctx.lineWidth = Math.max(0.15, s.width * pass.width);
+        ctx.lineWidth = w;
         ctx.strokeStyle = s.color;
-        ctx.shadowBlur = Math.min(32, pass.blur * (s.width * 0.7 + 0.4));
+        ctx.shadowBlur = Math.min(24 * scale, w * 6);
         ctx.shadowColor = s.color;
         ctx.stroke();
       }
     }
+    ctx.shadowBlur = 0;
+  }
 
+  /* ---------- کش کردن هر ضربه در یک اسپرایت (تصویر آماده) ----------
+     چرا؟ صاعقهٔ شاخه‌دار ~۵۰۰ قطعه دارد و ۳ پاس = ~۱۵۰۰ ضربه‌قلم با shadowBlur
+     در هر فریم. یک‌بار روی بوم مخفی کشیده می‌شود و بعد هر فریم فقط drawImage
+     با آلفای متغیر انجام می‌شود ⇒ همان جزئیات، بدون سنگینی روی گوشی. */
+
+  var spriteOwners = [];
+  var SPRITE_MAX = 4;
+
+  function createSpriteCanvas(w, h) {
+    if (typeof document !== "undefined" && document.createElement) {
+      var c = document.createElement("canvas");
+      c.width = w;
+      c.height = h;
+      return c;
+    }
+    if (typeof OffscreenCanvas !== "undefined") return new OffscreenCanvas(w, h);
+    return null;
+  }
+
+  function ensureLightningSprite(ev, W, H) {
+    var geom = ensureLightningGeometry(ev, W, H);
+    if (!geom) return null;
+
+    if (ev._sprite && ev._spriteKey === ev._geomKey) return ev._sprite;
+
+    var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity, any = false;
+    for (var b = 0; b < geom.bolts.length; b++) {
+      var segs = geom.bolts[b].segments;
+      for (var i = 0; i < segs.length; i++) {
+        var sg = segs[i];
+        if (sg.x1 < minX) minX = sg.x1;
+        if (sg.x2 < minX) minX = sg.x2;
+        if (sg.x1 > maxX) maxX = sg.x1;
+        if (sg.x2 > maxX) maxX = sg.x2;
+        if (sg.y1 < minY) minY = sg.y1;
+        if (sg.y2 < minY) minY = sg.y2;
+        if (sg.y1 > maxY) maxY = sg.y1;
+        if (sg.y2 > maxY) maxY = sg.y2;
+        any = true;
+      }
+    }
+    if (!any) return null;
+
+    var pad = Math.round(geom.scale * 26) + 12;
+    minX -= pad; minY -= pad; maxX += pad; maxY += pad;
+
+    var cw = Math.max(1, Math.round(maxX - minX));
+    var ch = Math.max(1, Math.round(maxY - minY));
+
+    // سقف حافظه: اگر اسپرایت بزرگ شد، با نسبت کوچک‌تر ساخته می‌شود (کیفیت عملاً یکی است)
+    var MAX_SPRITE_PIXELS = 8e6;
+    var kScale = 1;
+    if (cw * ch > MAX_SPRITE_PIXELS) kScale = Math.sqrt(MAX_SPRITE_PIXELS / (cw * ch));
+
+    var canvas = createSpriteCanvas(Math.max(1, Math.round(cw * kScale)),
+                                   Math.max(1, Math.round(ch * kScale)));
+    if (!canvas) return null;
+    var c2 = canvas.getContext("2d");
+    if (!c2) return null;
+
+    if (kScale !== 1) c2.scale(kScale, kScale);
+    c2.translate(-minX, -minY);
+    for (var b2 = 0; b2 < geom.bolts.length; b2++) {
+      paintSegments(c2, geom.bolts[b2].segments, geom.scale, 1);
+    }
+
+    var sprite = { canvas: canvas, x: minX, y: minY, w: cw, h: ch };
+    ev._sprite = sprite;
+    ev._spriteKey = ev._geomKey;
+
+    // فقط ۴ اسپرایت آخر نگه داشته می‌شود
+    spriteOwners.push(ev);
+    while (spriteOwners.length > SPRITE_MAX) {
+      var old = spriteOwners.shift();
+      if (old && old !== ev) { old._sprite = null; old._spriteKey = ""; }
+    }
+
+    return sprite;
+  }
+
+  function drawSegments(ctx, segments, alpha) {
+    if (!segments || !segments.length || alpha <= 0.003) return;
+    ctx.save();
+    paintSegments(ctx, segments, 1, clamp(alpha, 0, 1));
     ctx.restore();
   }
 
@@ -553,7 +642,7 @@
 
     var intenMul = 0.70 + 0.55 * clamp((ev.intensity === undefined ? 80 : ev.intensity) / 100, 0, 1);
 
-    // ۱) فلاش کوتاه و لرزان پشت صحنه (مثل نمونهٔ lightning_storm)
+    // ۱) فلاش کوتاه و لرزان پشت صحنه
     if (ev.flash !== false) {
       var flashP = clamp(1 - p / 0.38, 0, 1);
 
@@ -569,11 +658,21 @@
       }
     }
 
-    // ۲) سه‌بار کشیدن روی همان مسیر: هاله / بدنه / هستهٔ سفید
-    var alpha = Math.pow(1 - p, 0.72);
+    // ۲) خود صاعقه: از اسپرایت آماده بلیت می‌شود (سبک)، وگرنه مستقیم کشیده می‌شود
+    var alpha = Math.pow(1 - p, 1.25);
+    if (alpha <= 0.004) return true;
 
-    for (var i = 0; i < geom.bolts.length; i++) {
-      drawSegments(ctx, geom.bolts[i].segments, alpha);
+    var sprite = ensureLightningSprite(ev, W, H);
+    if (sprite) {
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      ctx.globalAlpha = clamp(alpha, 0, 1);
+      ctx.drawImage(sprite.canvas, sprite.x, sprite.y, sprite.w, sprite.h);
+      ctx.restore();
+    } else {
+      for (var i = 0; i < geom.bolts.length; i++) {
+        drawSegments(ctx, geom.bolts[i].segments, alpha);
+      }
     }
 
     return true;
